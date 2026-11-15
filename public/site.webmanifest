@@ -1,0 +1,13 @@
+{
+  "name": "Internet Protocol",
+  "short_name": "Internet Protocol",
+  "description": "Asio non-boost networking for C++17 and Unreal Engine: UDP, TCP, HTTP and WebSocket.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0c0a",
+  "theme_color": "#0a0c0a",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

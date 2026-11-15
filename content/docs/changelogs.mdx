@@ -1,7 +1,66 @@
 ---
 title: Changelogs
-description: Release notes
+description: "Release notes for Internet Protocol: new features, breaking changes and fixes in the C++ library and the Unreal Engine plugin."
 ---
+
+## 3.0.2
+
+Unreal Engine plugin. The networking core was rewritten. Blueprint nodes keep the same names and pins, so existing graphs keep working.
+
+### Threading and stability
+
+* A single shared I/O service with a plugin-managed thread pool (1 to 4 threads) replaces the per-object threads. Each connection runs on its own strand.
+* Every event and callback now runs on the Game Thread through weak object references. Destroying an object with pending operations no longer crashes.
+* The Game Thread never blocks on network work, and every live connection is closed when the module shuts down.
+* `Join Threads` and `Stop Threads` are deprecated and do nothing.
+* Writes are queued in order with owned buffers. `Write` / `Send` return false when the send queue limit is exceeded (64 MiB for streams, 16 MiB for UDP).
+* `Close` is now graceful: it flushes pending data (and sends TLS `close_notify`) with a timeout. `On Close` fires exactly once per connection.
+
+### TLS
+
+* Secure by default: TLS 1.2 minimum, peer verification with the engine root certificates, SNI and host name verification on clients.
+* New `FSecurityContextOpts` fields: `CA_Cert`, `bUseSystemRootCertificates` and `bVerifyHostname`.
+* Invalid TLS options now fail with a `TLS configuration failed` error instead of running with a broken context. TLS servers require a certificate and a private key.
+* `Verify_Mode = None` on a client logs a warning every time it is used.
+* SSL objects created with `NewObject` without `Construct` now use the secure defaults.
+
+### HTTP
+
+* New incremental HTTP/1.x parser for client and server, with case-insensitive headers and limits (64 KiB headers, 64 MiB body).
+* Client: requests are queued and sent one at a time over a keep-alive connection. Each callback fires exactly once, with the response or an error.
+* Server: requests without a route receive `404 Not Found` automatically, malformed requests receive `400` / `413` / `431` / `501` / `505`, and pipelined requests are answered in order.
+* `HEAD` responses are handled without a body.
+
+### WebSocket
+
+* New RFC 6455 implementation: fragmented messages are reassembled, text messages and close reasons are validated as UTF-8, and messages are limited to 64 MiB.
+* `End` performs the closing handshake and waits up to 5 seconds for the peer. `Close` aborts immediately.
+* `On Close` reports `1005` when no code was received, `1006` when the connection is lost without a Close frame, and `1002` / `1007` / `1009` on protocol violations.
+* Pings are answered with a pong automatically.
+
+### Servers
+
+* `Open` / `Bind` accept an IP literal, `localhost` or an empty address. Host names and out-of-range ports fail with an `Invalid argument` error.
+
+### C++
+
+* The public headers no longer expose Asio internals. They include `net/fwd.h` instead of `net/asio.h`, and `get_socket()`, `Construct(io_context)`, `Destroy()`, `connect()` and the `on_close` / `on_request` callbacks were removed from the remote classes.
+* `FErrorCode`, `FUdpEndpoint` and `FTcpEndpoint` are exported (`INTERNETPROTOCOL_API`) and have default values. `LogAsio` is exported.
+* Asio is configured once in `InternetProtocol.Build.cs` (`ASIO_STANDALONE`, `ASIO_NO_EXCEPTIONS`, `ASIO_NO_DEPRECATED`). An unhandled Asio exception is now a fatal error instead of being silently logged.
+* The module now depends on the engine `SSL` module.
+
+### Other
+
+* Updated Asio from 1.36.0 to 1.38.2.
+* Added the `InternetProtocolTests` editor module (Win64) with automation tests for TCP, UDP, HTTP, WebSocket, TLS and object lifecycle.
+
+## 3.0
+
+* This version contains breaking changes aimed at making usage much easier and more efficient.
+* Added server socket support
+* More than 80 bugs and crashes fixed
+* TLS Support
+* Updated asio to version 2.34.2
 
 ## 2.0
 

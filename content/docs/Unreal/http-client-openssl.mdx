@@ -1,6 +1,6 @@
 ---
 title: HTTP Client Openssl
-description: How to use HTTP client class with openssl
+description: "HTTP client over TLS (OpenSSL) for Unreal Engine: Blueprint nodes, events and C++ usage with the Internet Protocol plugin."
 ---
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
@@ -10,7 +10,7 @@ import { ImageZoom } from 'fumadocs-ui/components/image-zoom';
 ## References
  
 <Tabs items={['Include']}>
-    <Tab value="Include">#include "Http/HttpClient.h"</Tab>
+    <Tab value="Include">#include "http/httpclient.h"</Tab>
 </Tabs>
 
 ## How to use
@@ -22,101 +22,21 @@ import { ImageZoom } from 'fumadocs-ui/components/image-zoom';
   <Step>
     C++: Use the code bellow
     ``` cpp
-    #include "Http/HttpClient.h"
+    #include "http/httpclient.h"
 
-    UHttpClientSsl* HttpClientSsl = NewObject<UHttpClientSsl>();
+    FSecurityContextOpts SecOpts = { ... };
+    UHttpClientSsl* client = NewObject<UHttpClientSsl>();
+    // Optional: without Construct, the secure defaults are used
+    client->Construct(SecOpts);
     ```
   </Step>
 </Steps>
 
+## TLS options
+
+-   `SecOpts` configures certificates, keys and verification. See [Security Context Options](/docs/Unreal/subsystem#security-context-options) for every field and its default.
+-   Since 3.0.2 the connection is secure by default: TLS 1.2+, peer verification with the system root certificates and, for clients, host name verification + SNI.
+
 ## Functions
 
-This class has the same functions from ```HttpClient```, except for the ones shown below
-
-### Update Ssl Socket
-
--   Update ssl config.
--   Must be called after change any config from Ssl Context.
-
-<ImageZoom
-    src="/img/client-side/http/ssl/updatesslsocket.png"
-    alt="TCP client openssl"
-    width={191}
-    height={104}
-/>
-
-### Get Ssl Context
-
--   Get ssl context properties.
--   Must be called after change any config from Ssl Context.
-
-<ImageZoom
-    src="/img/client-side/http/ssl/getsslcontext.png"
-    alt="TCP client openssl"
-    width={151}
-    height={56}
-/>
-
-### Get Ssl Socket
-
--   Get ssl socket properties.
-
-<ImageZoom
-    src="/img/client-side/http/ssl/getsslsocket.png"
-    alt="TCP client openssl"
-    width={156}
-    height={56}
-/>
-
-### Load Private Key Data
-
-* Load the private key from a string.
-* If any error occurs, it will trigger the ```OnError``` event.
-
-<ImageZoom src="/img/client-side/http/ssl/loadkeydata.png" alt='Http client openssl' width={230} height={134} />
-
-### Load Private Key File
-
-* Load the private key from file.
-* If any error occurs, it will trigger the ```OnError``` event.
-* Relative path.
-
-<ImageZoom src="/img/client-side/http/ssl/loadkeyfile.png" alt='Http client openssl' width={230} height={134} />
-
-### Load Certificate Data
-
-* Load the certificate from a string.
-* If any error occurs, it will trigger the ```OnError``` event.
-
-<ImageZoom src="/img/client-side/http/ssl/loadcertificatedata.png" alt='Http client openssl' width={232} height={134} />
-
-### Load Certificate File
-
-* Load the certificate from file.
-* If any error occurs, it will trigger the ```OnError``` event.
-* Relative path.
-
-<ImageZoom src="/img/client-side/http/ssl/loadcertificatefile.png" alt='Http client openssl' width={230} height={134} />
-
-### Load Certificate Chain Data
-
-* Load the certificate chain from a string.
-* If any error occurs, it will trigger the ```OnError``` event.
-
-<ImageZoom src="/img/client-side/http/ssl/loadcertificatechaindata.png" alt='Http client openssl' width={232} height={134} />
-
-### Load Certificate Chain File
-
-* Load the certificate chain from file.
-* If any error occurs, it will trigger the ```OnError``` event.
-* Relative path.
-
-<ImageZoom src="/img/client-side/http/ssl/loadcertificatechainfile.png" alt='Http client openssl' width={230} height={134} />
-
-### Load Verify File
-
-* Load the certificate from file and verify if it is valid.
-* If any error occurs, it will trigger the ```OnError``` event.
-* Relative path.
-
-<ImageZoom src="/img/client-side/http/ssl/loadverifyfile.png" alt='Http client openssl' width={230} height={134} />
+This class has the same functions from `HttpClient`

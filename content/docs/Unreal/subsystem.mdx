@@ -1,6 +1,6 @@
 ---
 title: Subsystem
-description: How to use Subsystem
+description: "Internet Protocol subsystem for Unreal Engine: create UDP, TCP, HTTP and WebSocket clients and servers from Blueprints, and TLS options."
 ---
 
 import { Step, Steps } from "fumadocs-ui/components/steps";
@@ -13,12 +13,7 @@ The Internet Protocol Subsystem is a class designed to simplify the creation of 
 <Steps>
     <Step>
         Search by `GetInternetProtocolSubsystem`
-        <ImageZoom
-            src="/img/subsystem/searchbox.png"
-            alt="subsystem"
-            width={405}
-            height={404}
-        />
+        <img src="/img/subsystem/searchbox.png" loading="lazy" decoding="async" />
     </Step>
 </Steps>
 
@@ -26,144 +21,274 @@ The Internet Protocol Subsystem is a class designed to simplify the creation of 
 
 ### Create UDP Server
 
-<ImageZoom
-    src="/img/subsystem/createudpserver.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create UDPServer"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create TCP Server
 
-<ImageZoom
-    src="/img/subsystem/createtcpserver.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create TCPServer"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create TCP Server Ssl
 
-<ImageZoom
-    src="/img/subsystem/createtcpserverssl.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create TCPServer Ssl"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "SecOpts", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create Http Server
 
-<ImageZoom
-    src="/img/subsystem/createhttpserver.png"
-    alt="subsystem"
-    width={267}
-    height={214}
-/>
-
-### Create Http Server
-
-<ImageZoom
-    src="/img/subsystem/createhttpserver.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create Http Server"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create Http Server Ssl
 
-<ImageZoom
-    src="/img/subsystem/createhttpserverssl.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create Http Server Ssl"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "SecOpts", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create WebSocket Server
 
-<ImageZoom
-    src="/img/subsystem/createwebsocketserver.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create WSServer"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
-### Create WebSocket Server Ssl
+### Create Ws Server Ssl
 
-<ImageZoom
-    src="/img/subsystem/createwebsocketserverssl.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create WSServer Ssl"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "SecOpts", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create UDP Client
 
-<ImageZoom
-    src="/img/subsystem/createudpclient.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create UDPClient"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create TCP Client
 
-<ImageZoom
-    src="/img/subsystem/createtcpclient.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create TCPClient"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create TCP Client Ssl
 
-<ImageZoom
-    src="/img/subsystem/createtcpclientssl.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create TCPClient Ssl"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "SecOpts", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create HTTP Client
 
-<ImageZoom
-    src="/img/subsystem/createhttpclient.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create Http Client"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create HTTP Client Ssl
 
-<ImageZoom
-    src="/img/subsystem/createhttpclientssl.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+### Create HTTP Client
+
+<UFunction
+  name="Create Http Client Ssl"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
-### Create Websocket Client
+### Create Ws Client
 
-<ImageZoom
-    src="/img/subsystem/createwebsocketclient.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create WSClient"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
-### Create Websocket Client Ssl
+### Create Ws Client Ssl
 
-<ImageZoom
-    src="/img/subsystem/createwebsocketclientssl.png"
-    alt="subsystem"
-    width={267}
-    height={214}
+<UFunction
+  name="Create WSClient Ssl"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
 
 ### Create Json Object
 
-<ImageZoom
-    src="/img/subsystem/createjson.png"
-    alt="subsystem"
-    width={267}
-    height={198}
+<UFunction
+  name="Create Json Object"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
 />
+
+## Security Context Options
+
+Every `Create ... Ssl` node takes a `SecOpts` struct (`FSecurityContextOpts`). One TLS context is built per object when it is created, and shared by all its connections.
+
+<Callout title="Secure by default (3.0.2)">
+  -   TLS 1.2 is the minimum version (SSLv2/3, TLS 1.0/1.1 and compression are disabled). TLS 1.3 is used when both sides support it.
+  -   Peer certificates are verified against the engine root certificate store, plus any `CA_Cert` you provide.
+  -   Clients send SNI and check that the server certificate matches the address passed to `Connect`.
+  -   If the options are invalid (bad certificate, key that does not match, a server without a certificate), connections fail with the `TLS configuration failed` error instead of running with a broken context.
+</Callout>
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Private_Key` | String | empty | Private key, PEM text or base64 encoded ASN.1 (see `File_Format`). |
+| `Cert` | String | empty | Certificate, PEM text or base64 encoded ASN.1. |
+| `Cert_Chain` | String | empty | Certificate chain, PEM only. |
+| `RSA_Private_Key` | String | empty | RSA private key, PEM text or base64 encoded ASN.1. |
+| `File_Format` | `EFileFormat` | `pem` | Format of `Private_Key`, `Cert` and `RSA_Private_Key`: `pem` or `asn1`. |
+| `Verify_Mode` | `EVerifyMode` | `Verify_Peer` | `None`, `Verify_Peer`, `Verify_Fail_If_No_Peer_Cert` or `Verify_Client_Once`. |
+| `Host_Name_Verification` | String | empty | Client: overrides the host name used for SNI and certificate verification (empty = the `Connect` address). Server: name checked against client certificates. |
+| `CA_Cert` | String | empty | **New in 3.0.2.** Extra trusted CA certificate(s), PEM. Use it for private or self-signed CAs. |
+| `bUseSystemRootCertificates` | Boolean | `true` | **New in 3.0.2.** Trust the platform/engine root certificate store. |
+| `bVerifyHostname` | Boolean | `true` | **New in 3.0.2.** Client only: verify that the server certificate matches the host name. |
+
+-   **Servers** must provide a certificate (`Cert` or `Cert_Chain`) and a private key. On a server, `Verify_Mode = None` only means that no client certificate is requested, which is the usual setup.
+-   **Clients**: `Verify_Mode = None` disables certificate verification and logs a warning every time it is used. Use it only for local testing.
+-   Objects created in C++ with `NewObject` without calling `Construct` use these secure defaults.

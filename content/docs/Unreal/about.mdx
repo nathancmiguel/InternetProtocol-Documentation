@@ -1,6 +1,6 @@
 ---
 title: About plugin
-description: Intruduction
+description: "Overview of the Internet Protocol Unreal Engine plugin: modules, supported engine versions, threading model, errors and limits."
 ---
 
 Internet Protocol exposes UDP, TCP, HTTP, Websocket, and Json modules to the blueprint. The goal of this plugin is, in addition to making it easier, to give you full control over managing connections and manipulating messages via Json.
@@ -11,18 +11,51 @@ Internet Protocol exposes UDP, TCP, HTTP, Websocket, and Json modules to the blu
 -   UDP `Server and Client side`.
 -   TCP `Server and Client side`.
 -   Websocket `Server and Client side`.
--   HTTP `Client side only`.
+-   HTTP `Server and Client side`.
 -   Json.
--   RawFunctionLibrary.
+-   Common Utilities.
 
 ## Supported Unreal Versions
 
 | UE4  | UE5       |
 | ---- | --------- |
-| 4.27 | 5.2 - 5.5 |
+| 4.27 | 5.2 - 5.6 |
+
+## Threading
+
+Since 3.0.2 the plugin owns its network threads:
+
+-   One shared I/O service is started with the module and runs on a small fixed pool (half of the CPU cores, between 1 and 4 threads). You no longer need `Join Threads` or `Stop Threads`; both are deprecated and do nothing.
+-   Every event and callback (`On Connected`, `On Message`, message sent callbacks, HTTP responses...) runs on the **Game Thread**, so you can use them directly in Blueprints.
+-   Each connection runs on its own strand: its handlers never run concurrently, while different connections run in parallel.
+-   Destroying an object while it still has pending operations is safe: results that arrive later are discarded instead of touching a destroyed object.
+-   The Game Thread never blocks on network work. Pending connections are closed when the engine shuts down.
+
+## Errors
+
+`Get Error Code` and the `On Error` events return an `FErrorCode` with a `Value` and a `Message`. Besides the errors reported by the OS, Asio and OpenSSL, the plugin now reports its own errors:
+
+| Message | When |
+| --- | --- |
+| Network service is not running | An object is used before the module started or after it shut down. |
+| Invalid argument | A host name, or a port outside 0-65535, was passed to a server `Open` / `Bind`. |
+| TLS configuration failed | The [Security Context Options](/docs/Unreal/subsystem#security-context-options) are invalid (bad certificate or key, key that does not match, server without a certificate). |
+| Send queue is full | HTTP client: the request could not be queued for sending. |
+| Malformed HTTP message | HTTP client: the server response could not be parsed. |
+| Connection closed | HTTP client: the connection was closed (or `Close` was called) while the request was pending. |
+
+WebSocket protocol problems are reported through the `On Close` code (`1002`, `1007`, `1009`) instead of an error.
+
+## Limits
+
+| Limit | Value |
+| --- | --- |
+| Data waiting to be sent per TCP / TLS / WebSocket connection | 64 MiB (`Write` returns false beyond it) |
+| Datagrams waiting to be sent per UDP socket | 16 MiB (`Send` returns false beyond it) |
+| WebSocket message size | 64 MiB (larger messages close the connection with code `1009`) |
+| HTTP headers | 64 KiB |
+| HTTP body | 64 MiB |
 
 ## Changelogs
 
-### 1.0
-
--   Initial release.
+See the full [changelogs](/docs/changelogs). Latest: **3.0.2**, a rewrite of the networking core with a plugin-managed thread pool, secure-by-default TLS and many stability fixes.
