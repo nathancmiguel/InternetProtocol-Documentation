@@ -1,0 +1,361 @@
+---
+title: RTMP Receiver
+description: "Play live RTMP/RTMPS streams in Unreal Engine 5.8: video texture for materials and UMG, spatialized audio, low latency mode, pull from servers and Media Framework."
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+The RTMP receiver decodes a live H.264/AAC stream and plays it through the Media Framework: you get a **video texture** for materials and UMG, and a **spatialized audio component**. It can receive a stream published to this machine (OBS, FFmpeg, another Unreal) or pull one from any RTMP server. See the [RTMP overview](/docs/Unreal/rtmp) for complete flows.
+
+<Callout type="warn" title="UE 5.8, Win64">
+  The receiver lives in the `InternetProtocolMedia` module, which requires Unreal Engine 5.8 on Win64.
+</Callout>
+
+## References
+
+<Tabs items={["Include"]}>
+    <Tab value="Include">#include "IPRtmpReceiver.h"</Tab>
+</Tabs>
+
+## How to use
+
+<Steps>
+  <Step>
+    Blueprint: add a **Construct Object from Class** node, set `Class` to `IPRtmp Receiver` and `Outer` to `self`, and store the result in a variable.
+
+    <UFunction
+      name="Construct IPRtmp Receiver"
+      pure={false}
+      inPins={[
+        { name: "", pintype: "exec" },
+        { name: "Class", pintype: "class" },
+        { name: "Outer", pintype: "object" }
+      ]}
+      outPins={[
+        { name: "", pintype: "exec" },
+        { name: "Return Value", pintype: "object" }
+      ]}
+    />
+  </Step>
+  <Step>
+    Call one of the start nodes ([`Start From Server`](#start-from-server), [`Start Pull`](#start-pull) or [`Start Url`](#start-url)), then plug [`Get Video Texture`](#get-video-texture) into a material and call [`Create Audio Component`](#create-audio-component) for sound.
+  </Step>
+  <Step>
+    C++: Use the code bellow
+    ``` cpp
+    #include "IPRtmpReceiver.h"
+
+    UIPRtmpReceiver* Receiver = NewObject<UIPRtmpReceiver>(this);
+    Receiver->StartFromServer(Server, TEXT("live"), StreamKey, EIPRtmpLatencyMode::LowLatency);
+    ScreenMaterial->SetTextureParameterValue(TEXT("Video"), Receiver->GetVideoTexture());
+    Receiver->CreateAudioComponent(ScreenActor);
+    ```
+  </Step>
+</Steps>
+
+<Callout title="Keep a reference">
+  Store the receiver in a variable (Blueprint) or a `UPROPERTY` (C++). An object that nothing references is destroyed by the garbage collector, and the stream stops.
+</Callout>
+
+## Latency modes
+
+`EIPRtmpLatencyMode` sets the size of the jitter buffer. Audio is the master clock.
+
+| Mode | Default buffer | Use it for |
+| --- | --- | --- |
+| `Low Latency` | 150 ms | Lowest delay, on a good local network. More rebuffering on bad networks. |
+| `Smooth` (default) | 1000 ms | Internet streams: tolerant to network jitter. |
+
+`Latency Ms` overrides the buffer size of the mode (`0` uses the default above, up to 10000 ms).
+
+## Nodes
+
+### Start From Server
+
+-   Receives the stream published to an [`RTMP Server`](/docs/Unreal/rtmp-server) of this plugin, with the given `App` and `Stream Key`.
+-   The server must already be open: otherwise it returns false and `On Error` is triggered.
+-   You can start the receiver before the publisher connects: `On Started` fires when the stream arrives.
+
+<UFunction
+  name="Start From Server"
+  className="IPRtmp Receiver"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Server", pintype: "object" },
+    { name: "App", pintype: "fstring" },
+    { name: "Stream Key", pintype: "fstring" },
+    { name: "Latency Mode", pintype: "enum" },
+    { name: "Latency Ms", pintype: "int" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Start Pull
+
+-   Plays a stream from an RTMP server: MediaMTX, nginx-rtmp, or another Unreal with [playback](/docs/Unreal/rtmp-server#playback) enabled.
+-   `Url` is `rtmp://host[:port]/app` or `rtmps://host[:port]/app`. The `Stream Key` (or view key) is passed separately: it is kept in memory only and never logged.
+-   Reconnects with exponential backoff if the connection drops. Server refusals (unknown key, TLS errors...) are reported through `On Error` and are not retried.
+-   For `rtmps://`, certificates are always verified.
+
+<UFunction
+  name="Start Pull"
+  className="IPRtmp Receiver"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Url", pintype: "fstring" },
+    { name: "Stream Key", pintype: "fstring" },
+    { name: "Latency Mode", pintype: "enum" },
+    { name: "Latency Ms", pintype: "int" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Start Url
+
+-   Starts from a single URL:
+    -   `iprtmp://host:port/app/key`: a stream published to this machine. The port is served by an `RTMP Server` opened on it or, when none exists, by an internal listener.
+    -   `rtmp://host[:port]/app/key` or `rtmps://...`: plays the stream from that RTMP server, like `Start Pull`.
+-   Prefer `Start Pull` or `Start From Server` when the key is a secret, so it is not part of a URL.
+
+<UFunction
+  name="Start Url"
+  className="IPRtmp Receiver"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Url", pintype: "fstring" },
+    { name: "Latency Mode", pintype: "enum" },
+    { name: "Latency Ms", pintype: "int" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Stop
+
+-   Stops receiving. `On Ended` is triggered if a stream was playing.
+
+<UFunction
+  name="Stop"
+  className="IPRtmp Receiver"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Is Active
+
+-   Return true between a successful start and `Stop`.
+
+<UFunction
+  name="Is Active"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Is Streaming
+
+-   Return true while a publisher is sending the stream.
+
+<UFunction
+  name="Is Streaming"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Get Video Texture
+
+-   `Media Texture` with the video, usable in materials and UMG. Valid after a start node.
+
+<UFunction
+  name="Get Video Texture"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "object" }
+  ]}
+/>
+
+### Get Media Player
+
+-   The underlying `Media Player`, for anything the Media Framework offers.
+
+<UFunction
+  name="Get Media Player"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "object" }
+  ]}
+/>
+
+### Create Audio Component
+
+-   Creates (or returns) a spatialized `Media Sound Component` playing the stream audio, attached to the root of `Owner`.
+-   Configure attenuation on the returned component as for any audio component. It can be called before or after a start node.
+
+<UFunction
+  name="Create Audio Component"
+  className="IPRtmp Receiver"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Owner", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
+/>
+
+### Get Stats
+
+-   Return a [`FIPRtmpReceiverStats`](#receiver-stats) struct with the current playback statistics.
+
+<UFunction
+  name="Get Stats"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+## Events
+
+### On Started
+
+-   A publisher started sending the stream (also after the publisher reconnects).
+
+<UEvents
+  name="On Started"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### On Ended
+
+-   The stream stopped: the publisher disconnected, or `Stop` was called.
+
+<UEvents
+  name="On Ended"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### On Error
+
+-   An error happened: invalid URL, server not open, refused key, TLS error... The message never contains the stream key.
+
+<UEvents
+  name="On Error"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Message", pintype: "fstring" }
+  ]}
+/>
+
+### On Frame
+
+-   A new video frame was presented. `Frame` carries metadata only (never the pixels): width, height, time and fps.
+
+<UEvents
+  name="On Frame"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Frame", pintype: "struct" }
+  ]}
+/>
+
+## Structs
+
+### Receiver Stats
+
+`FIPRtmpReceiverStats`, returned by [`Get Stats`](#get-stats).
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Streaming` | Boolean | A publisher is currently sending this stream. |
+| `Width`, `Height` | Integer | Video size. |
+| `Fps` | Float | Video frames handed to the Media Framework per second. |
+| `Bitrate Kbps` | Float | Incoming media bitrate (audio + video). |
+| `Buffered Ms` | Float | Media buffered ahead of presentation (jitter buffer). Network and encoder delay are not included. |
+| `Audio Sample Rate`, `Audio Channels` | Integer | Audio format. |
+| `Dropped Video Frames`, `Dropped Audio Frames` | Integer64 | Frames dropped since the start. |
+| `Rebuffers` | Integer | Times the buffer ran out and playback paused to refill it. |
+| `Discontinuities` | Integer | Timestamp jumps of more than 1 s in the incoming stream (for example when the publisher restarts). |
+| `Video Decoder`, `Audio Decoder` | String | Name of the decoders in use. |
+
+### Video Frame Info
+
+`FIPVideoFrameInfo`, sent by [`On Frame`](#on-frame).
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Width`, `Height` | Integer | Frame size. |
+| `Time` | Float (double) | Presentation time on the player timeline, in seconds. |
+| `Fps` | Float | Frames per second measured over the last second. |
+
+## Media Source
+
+The receiver plays through the Media Framework, so streams also work with your own `Media Player`, `Media Texture`, `Media Sound Component` and **Media Plate**. The plugin registers a media player for these URLs:
+
+-   `iprtmp://0.0.0.0:1935/<app>/<stream key>`: a stream published to this machine. The port is served by an `RTMP Server` opened on it or, when none exists, by an internal listener.
+-   `rtmp://host[:port]/<app>[/<key>]` or `rtmps://...`: plays the stream from that RTMP server (pull).
+
+`IP Rtmp Media Source` (`UIPRtmpMediaSource`) is the media source for these URLs. Create it at runtime (Construct Object from Class) and open it with the `Open Source` node of a Media Player.
+
+| Property | Default | Description |
+| --- | --- | --- |
+| `URL` | `iprtmp://0.0.0.0:1935/live/stream` | Stream URL, see above. |
+| `Latency Mode` | `Smooth` | See [Latency modes](#latency-modes). |
+| `Latency Ms` | `0` | Jitter buffer target in ms (`0` = default of the mode). |
+
+<Callout type="warn" title="Keys in saved assets">
+  A key written in a URL ends up in saved assets and in source control. Set the URL at runtime, or use `Set Stream Key`.
+</Callout>
+
+### Set Stream Key
+
+-   Stream key for `rtmp(s)://` URLs, kept in memory only (never saved). When empty, the last path segment of the URL is used.
+
+<UFunction
+  name="Set Stream Key"
+  className="IPRtmp Media Source"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "In Stream Key", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>

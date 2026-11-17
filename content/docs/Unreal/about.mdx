@@ -3,7 +3,7 @@ title: About plugin
 description: "Overview of the Internet Protocol Unreal Engine plugin: modules, supported engine versions, threading model, errors and limits."
 ---
 
-Internet Protocol exposes UDP, TCP, HTTP, Websocket, and Json modules to the blueprint. The goal of this plugin is, in addition to making it easier, to give you full control over managing connections and manipulating messages via Json.
+Internet Protocol exposes UDP, TCP, HTTP, Websocket, RTMP and Json modules to the blueprint, plus live audio/video receive and publish over RTMP. The goal of this plugin is, in addition to making it easier, to give you full control over managing connections and manipulating messages via Json.
 
 ## Modules
 
@@ -12,14 +12,16 @@ Internet Protocol exposes UDP, TCP, HTTP, Websocket, and Json modules to the blu
 -   TCP `Server and Client side`.
 -   Websocket `Server and Client side`.
 -   HTTP `Server and Client side`.
+-   RTMP / RTMPS `Server and Client side`, with live audio/video [receive and publish](/docs/Unreal/rtmp).
 -   Json.
 -   Common Utilities.
 
 ## Supported Unreal Versions
 
-| UE4  | UE5       |
-| ---- | --------- |
-| 4.27 | 5.2 - 5.6 |
+| Modules | UE4 | UE5 | Platforms |
+| --- | --- | --- | --- |
+| Networking (UDP, TCP, HTTP, WebSocket, TLS, RTMP protocol) | 4.27 | 5.2 - 5.8 | Win64 |
+| Live audio/video (`InternetProtocolMedia`: RTMP receiver and publisher) | - | 5.8 | Win64 |
 
 ## Threading
 

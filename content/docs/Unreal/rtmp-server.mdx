@@ -1,0 +1,400 @@
+---
+title: RTMP Server
+description: "RTMP/RTMPS server for Unreal Engine: receive OBS and FFmpeg streams, serve viewers with view keys, Blueprint nodes and C++ usage."
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+The RTMP server accepts publishers (OBS, FFmpeg, another Unreal) and makes their audio and video available to an [`RTMP Receiver`](/docs/Unreal/rtmp-receiver). It can also let RTMP clients (VLC, ffplay, OBS) watch those streams. See the [RTMP overview](/docs/Unreal/rtmp) for complete flows.
+
+<Callout title="Engine versions">
+  The server is part of the `InternetProtocol` module and works from UE 4.27 to 5.8. Decoding and playing the received stream (`RTMP Receiver`) requires UE 5.8 on Win64.
+</Callout>
+
+## References
+
+<Tabs items={["Include"]}>
+    <Tab value="Include">#include "rtmp/rtmpserver.h"</Tab>
+</Tabs>
+
+## How to use
+
+<Steps>
+  <Step>
+    Blueprint: search by [`GetInternetProtocolSubsystem`](/docs/Unreal/subsystem#how-to-use) and call [`CreateRTMPServer`](/docs/Unreal/subsystem#create-rtmp-server) function
+  </Step>
+  <Step>
+    C++: Use the code bellow
+    ``` cpp
+    #include "rtmp/rtmpserver.h"
+
+    URTMPServer* Server = NewObject<URTMPServer>(this);
+    FServerBindOptions Bind;
+    Bind.Address = TEXT("0.0.0.0");
+    Bind.Port = 1935;
+    Server->Open(Bind);
+    ```
+  </Step>
+</Steps>
+
+## Variables
+
+### Backlog
+
+-    Set/Get the maximum number of pending connections the server will accept in queue.
+
+<UVar
+  pin={{ name: "Backlog", pintype: "int" }}
+  get={true}
+/>
+
+## Nodes
+
+### Is Open
+
+-   Return true if the server is listening.
+
+<UFunction
+  name="Is Open"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Local Endpoint
+
+-   Get the local endpoint of the server. Use this function only after `Open`.
+
+<UFunction
+  name="Local Endpoint"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Get Error Code
+
+-   Return a struct of the latest error code.
+
+<UFunction
+  name="Get Error Code"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Open
+
+-   Opens the listening socket. The RTMP default port is `1935`.
+-   It returns false if the server is already open or if any error happens during the bind. `On Listening` is triggered on success.
+-   `Address` must be an IP literal, `localhost` or empty (any address). Host names are not resolved: they, and ports outside 0-65535, fail with an `Invalid argument` error.
+-   Publishers connect to `rtmp://<this machine>:<port>/<app>/<stream key>`.
+
+<UFunction
+  name="Open"
+  className="RTMPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Bind Opts", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Close
+
+-   Close the server and every publisher and viewer connection. 'on_close' event will be triggered.
+
+<UFunction
+  name="Close"
+  className="RTMPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Set Allowed Stream Keys
+
+-   Restricts which stream keys may publish. An empty array accepts any key.
+-   A publisher using a key that is not allowed is refused with `NetStream.Publish.Unauthorized`.
+-   A second publisher using a key that is already live is refused (`NetStream.Publish.BadName`).
+-   Keys are kept in memory only (never a saved property), so they never end up in versioned config.
+
+<UFunction
+  name="Set Allowed Stream Keys"
+  className="RTMPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Stream Keys", pintype: "fstringarray" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Set Tls Options
+
+-   Enables **RTMPS** (RTMP over TLS) for the next `Open`. Publishers and viewers then use `rtmps://`.
+-   Requires a certificate and a private key. See [Security Context Options](/docs/Unreal/subsystem#security-context-options).
+
+<UFunction
+  name="Set Tls Options"
+  className="RTMPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Sec Opts", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Clear Tls Options
+
+-   Disables RTMPS for the next `Open`.
+
+<UFunction
+  name="Clear Tls Options"
+  className="RTMPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+## Playback
+
+Playback lets RTMP clients (VLC, ffplay, an OBS *Media Source*, another Unreal) watch the streams published to this server. It is **off by default**. Viewers never get the publishing key: each stream is reached through a separate **view key**, at `rtmp://<this machine>:<port>/<app>/<view key>`.
+
+-   Each viewer costs the full stream bitrate in upload bandwidth.
+-   Each viewer has a bounded send queue: under congestion P-frames are dropped and the stream resumes at the next keyframe.
+-   Viewers stay connected while the publisher reconnects.
+
+### Set Playback Enabled
+
+-   Allows RTMP clients to watch published streams. Applies immediately.
+-   `Max Viewers Per Stream`: `0` means unlimited.
+
+<UFunction
+  name="Set Playback Enabled"
+  className="RTMPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Enabled", pintype: "bool" },
+    { name: "Max Viewers Per Stream", pintype: "int" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Is Playback Enabled
+
+-   Return true if playback is enabled.
+
+<UFunction
+  name="Is Playback Enabled"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Set Playback Key
+
+-   Lets viewers watch `App` / `Stream Key` by opening `rtmp://host:port/App/View Key`.
+-   Returns false if `View Key` is empty or equal to `Stream Key` (that would reveal the publishing key).
+-   Several view keys may point to the same stream.
+
+<UFunction
+  name="Set Playback Key"
+  className="RTMPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "App", pintype: "fstring" },
+    { name: "Stream Key", pintype: "fstring" },
+    { name: "View Key", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Remove Playback Key
+
+-   Removes one view key of `App`.
+
+<UFunction
+  name="Remove Playback Key"
+  className="RTMPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "App", pintype: "fstring" },
+    { name: "View Key", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Clear Playback Keys
+
+-   Removes every view key.
+
+<UFunction
+  name="Clear Playback Keys"
+  className="RTMPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Get Viewer Count
+
+-   Number of clients currently watching streams of `App`. An empty `App` counts every app.
+
+<UFunction
+  name="Get Viewer Count"
+  pure={true}
+  inPins={[
+    { name: "Target", pintype: "object" },
+    { name: "App", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "Return Value", pintype: "int" }
+  ]}
+/>
+
+## Events
+
+<Callout type="warn" title="Stream keys are secrets">
+  `Stream Name` in the publish events is the stream key sent by the publisher. Never show or log it. The plugin never logs keys, and playback events never report them.
+</Callout>
+
+### On Listening
+
+-   This event will be triggered when the server starts listening.
+
+<UEvents
+  name="On Listening"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### On Publish Started
+
+-   A publisher started sending a stream.
+
+<UEvents
+  name="On Publish Started"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "App", pintype: "fstring" },
+    { name: "Stream Name", pintype: "fstring" },
+    { name: "Remote", pintype: "struct" }
+  ]}
+/>
+
+### On Publish Ended
+
+-   A publisher stopped or disconnected. More streams may start later with the same key.
+
+<UEvents
+  name="On Publish Ended"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "App", pintype: "fstring" },
+    { name: "Stream Name", pintype: "fstring" },
+    { name: "Remote", pintype: "struct" }
+  ]}
+/>
+
+### On Play Started
+
+-   A client started watching a stream of `App`.
+
+<UEvents
+  name="On Play Started"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "App", pintype: "fstring" },
+    { name: "Remote", pintype: "struct" }
+  ]}
+/>
+
+### On Play Ended
+
+-   A client stopped watching a stream of `App`.
+
+<UEvents
+  name="On Play Ended"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "App", pintype: "fstring" },
+    { name: "Remote", pintype: "struct" }
+  ]}
+/>
+
+### On Close
+
+-   Event triggered when the server is closed.
+
+<UEvents
+  name="On Close"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### On Error
+
+-   Event triggered if any error occur during async process.
+
+<UEvents
+  name="On Error"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Error Code", pintype: "struct" }
+  ]}
+/>

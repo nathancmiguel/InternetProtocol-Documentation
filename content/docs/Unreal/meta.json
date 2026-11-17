@@ -19,6 +19,12 @@
         "http-client-openssl",
         "websocket-client",
         "websocket-client-openssl",
+        "---RTMP (Live audio/video)---",
+        "rtmp",
+        "rtmp-server",
+        "rtmp-receiver",
+        "rtmp-publisher",
+        "---Utilities---",
         "json"
     ]
 }

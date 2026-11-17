@@ -1,0 +1,294 @@
+---
+title: RTMP Publisher
+description: "Stream Unreal Engine 5.8 to Twitch, YouTube, MediaMTX or nginx-rtmp over RTMP/RTMPS: viewport, render target or scene capture with GPU H.264 and AAC audio."
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+
+The RTMP publisher streams video and audio from Unreal to any RTMP/RTMPS server: Twitch, YouTube, MediaMTX, nginx-rtmp, or another Unreal running an [`RTMP Server`](/docs/Unreal/rtmp-server). It captures the **viewport**, a **render target** or a **scene capture**, encodes H.264 on the GPU and AAC audio, and reconnects on its own. See the [RTMP overview](/docs/Unreal/rtmp) for complete flows.
+
+<Callout type="warn" title="Requirements">
+  -   The publisher lives in the `InternetProtocolMedia` module, which requires Unreal Engine 5.8 on Win64.
+  -   It needs an **NVIDIA (NVENC) or AMD (AMF) GPU**: there is no software H.264 encoder. Without one of these GPUs, `Start` reports a clear error through `On Error`.
+</Callout>
+
+## References
+
+<Tabs items={["Include"]}>
+    <Tab value="Include">#include "IPRtmpPublisher.h"</Tab>
+</Tabs>
+
+## How to use
+
+<Steps>
+  <Step>
+    Blueprint: add a **Construct Object from Class** node, set `Class` to `IPRtmp Publisher` and `Outer` to `self`, and store the result in a variable.
+
+    <UFunction
+      name="Construct IPRtmp Publisher"
+      pure={false}
+      inPins={[
+        { name: "", pintype: "exec" },
+        { name: "Class", pintype: "class" },
+        { name: "Outer", pintype: "object" }
+      ]}
+      outPins={[
+        { name: "", pintype: "exec" },
+        { name: "Return Value", pintype: "object" }
+      ]}
+    />
+  </Step>
+  <Step>
+    Fill an [`IP Rtmp Publish Config`](#publish-config) struct (Make struct) and call [`Start`](#start) with the server URL and the stream key.
+  </Step>
+  <Step>
+    C++: Use the code bellow
+    ``` cpp
+    #include "IPRtmpPublisher.h"
+
+    FIPRtmpPublishConfig Config;
+    Config.VideoSource = EIPPublishVideoSource::Viewport;   // or RenderTarget / SceneCapture
+    Config.Width = 1280; Config.Height = 720; Config.FrameRate = 30;
+    Config.VideoBitrateKbps = 4500; Config.KeyframeIntervalSeconds = 2;
+    Config.AudioSource = EIPPublishAudioSource::Submix;     // main submix, or Manual / None
+
+    UIPRtmpPublisher* Publisher = NewObject<UIPRtmpPublisher>(this);
+    Publisher->Start(TEXT("rtmp://live.twitch.tv/app"), StreamKey, Config);
+    ```
+  </Step>
+</Steps>
+
+<Callout title="Keep a reference">
+  Store the publisher in a variable (Blueprint) or a `UPROPERTY` (C++). An object that nothing references is destroyed by the garbage collector, and the stream stops.
+</Callout>
+
+## How it works
+
+-   **Video:** H.264 encoded by the GPU through the engine's AVCodecs: NVENC first, then AMF. There is no CPU readback. Frames are captured at the configured rate, up to the game frame rate.
+-   **Audio:** AAC-LC at 48 kHz stereo, encoded by Media Foundation.
+-   **Network:** `rtmp://` and `rtmps://`, with a bounded send queue. Under congestion P-frames are dropped first. Reconnection uses exponential backoff from 1 to 30 s, and a keyframe is forced after each reconnection.
+-   The stream key is never logged: URLs are logged as `rtmp://host/app/***`, and `On Error` messages never contain it.
+
+## Nodes
+
+### Start
+
+-   Starts publishing to `Url`: `rtmp://host[:port]/app` or `rtmps://host[:port]/app`.
+-   `Stream Key` is appended as the stream name. Leave it empty if the URL already ends with it.
+-   Returns false, and triggers `On Error`, on invalid input: bad URL, `Render Target` source without a render target, `Scene Capture` source without a scene capture, no supported GPU encoder...
+-   `Width` and `Height` are rounded down to even values (minimum 16), and `Frame Rate` is clamped to 1-120.
+-   If the `Submix` audio source has no audio device (audio disabled), it publishes video only and reports it through `On Error`.
+
+<UFunction
+  name="Start"
+  className="IPRtmp Publisher"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Url", pintype: "fstring" },
+    { name: "Stream Key", pintype: "fstring" },
+    { name: "In Config", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Stop
+
+-   Graceful stop: the stream is unpublished, nothing reconnects afterwards and the state goes back to `Idle`.
+
+<UFunction
+  name="Stop"
+  className="IPRtmp Publisher"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Get State
+
+-   Return the current [`EIPRtmpPublisherState`](#publisher-state).
+
+<UFunction
+  name="Get State"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "enum" }
+  ]}
+/>
+
+### Is Publishing
+
+-   Return true while the server accepts the stream (state `Publishing`).
+
+<UFunction
+  name="Is Publishing"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Get Stats
+
+-   Return a [`FIPRtmpPublisherStats`](#publisher-stats) struct with the current statistics.
+
+<UFunction
+  name="Get Stats"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Push Audio Samples
+
+-   Audio for the `Manual` audio source (microphone, generated audio...): interleaved float samples between -1 and 1, any channel count and sample rate. They are converted to 48 kHz stereo.
+-   From C++, `PushAudio(const float* Interleaved, int32 NumFrames, int32 NumChannels, int32 SampleRate)` does the same and can be called from any thread.
+
+<UFunction
+  name="Push Audio Samples"
+  className="IPRtmp Publisher"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Interleaved", pintype: "floatarray" },
+    { name: "Num Channels", pintype: "int" },
+    { name: "Sample Rate", pintype: "int" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+## Events
+
+### On State Changed
+
+-   The [publisher state](#publisher-state) changed.
+
+<UEvents
+  name="On State Changed"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "State", pintype: "enum" }
+  ]}
+/>
+
+### On Publishing
+
+-   The server accepted the stream. Also triggered after each successful reconnection.
+
+<UEvents
+  name="On Publishing"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### On Reconnecting
+
+-   The connection dropped and the publisher is retrying. `Attempt` counts the retries.
+
+<UEvents
+  name="On Reconnecting"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Attempt", pintype: "int" }
+  ]}
+/>
+
+### On Error
+
+-   An error happened. The message never contains the stream key.
+
+<UEvents
+  name="On Error"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Message", pintype: "fstring" }
+  ]}
+/>
+
+## Structs and enums
+
+### Publish Config
+
+`FIPRtmpPublishConfig`, passed to [`Start`](#start).
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Video Source` | [`EIPPublishVideoSource`](#video-source) | `Viewport` | What is encoded as video. |
+| `Render Target` | Texture Render Target 2D | none | Used when `Video Source` is `Render Target`. |
+| `Scene Capture` | Scene Capture Component 2D | none | Used when `Video Source` is `Scene Capture`. If it has no `Texture Target`, one of the output size is created. |
+| `Width`, `Height` | Integer | `1280` × `720` | Output size; the source is scaled. Even values, minimum 16. |
+| `Frame Rate` | Integer | `30` | Capture rate (1-120). Frames are skipped when the game runs faster; it cannot exceed the game frame rate. |
+| `Video Bitrate Kbps` | Integer | `4500` | Constant bitrate (minimum 100). |
+| `Keyframe Interval Seconds` | Integer | `2` | 1-10. Twitch and YouTube require 2 s. |
+| `Audio Source` | [`EIPPublishAudioSource`](#audio-source) | `Submix` | Where the audio comes from. |
+| `Submix` | Sound Submix | none | Submix to capture. Empty uses the main submix. |
+| `Audio Bitrate Kbps` | Integer | `160` | AAC-LC 48 kHz stereo: 96, 128, 160 or 192. |
+| `Reconnect` | Boolean | `true` | Reconnect with exponential backoff (1 to 30 s) when the connection drops. |
+| `Max Reconnect Attempts` | Integer | `0` | `0` retries forever. |
+
+### Video Source
+
+`EIPPublishVideoSource`
+
+| Value | Description |
+| --- | --- |
+| `Viewport` | The game viewport's back buffer: what the player sees, UI included. |
+| `Render Target` | A render target you draw into (materials, UMG widget renderer, canvas...). |
+| `Scene Capture` | A scene capture component (another camera), captured at the publish frame rate. |
+
+### Audio Source
+
+`EIPPublishAudioSource`
+
+| Value | Description |
+| --- | --- |
+| `None` | No audio track. |
+| `Submix` | The engine's audio output: the main submix, or the one set in `Submix`. |
+| `Manual` | Samples pushed with [`Push Audio Samples`](#push-audio-samples). |
+
+### Publisher State
+
+`EIPRtmpPublisherState`
+
+| Value | Description |
+| --- | --- |
+| `Idle` | Not publishing. |
+| `Connecting` | Connecting to the server. |
+| `Publishing` | The server accepted the stream. |
+| `Reconnecting` | Connection lost: retrying with exponential backoff. |
+| `Error` | Stopped because of an error (see `On Error`). |
+
+### Publisher Stats
+
+`FIPRtmpPublisherStats`, returned by [`Get Stats`](#get-stats).
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `State` | [`EIPRtmpPublisherState`](#publisher-state) | Current state. |
+| `Fps` | Float | Encoded video frames per second. |
+| `Sent Kbps` | Float | Bytes actually written to the network, in kbit/s. |
+| `Dropped Video Frames` | Integer64 | Video frames not encoded (encoder busy) or not sent (network congestion). |
+| `Dropped Audio Frames` | Integer64 | Audio frames lost (capture overrun or network congestion). |
+| `Queued Bytes` | Integer64 | Bytes waiting in the send queue. |
+| `Rtt Ms` | Float | Round-trip time to the server in ms (-1 when unknown). |
+| `Reconnect Attempts` | Integer | Reconnections so far. |
+| `Video Encoder`, `Audio Encoder` | String | Name of the encoders in use. |

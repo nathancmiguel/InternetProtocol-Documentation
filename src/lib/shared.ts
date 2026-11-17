@@ -1,7 +1,7 @@
 export const appName = "Internet Protocol";
 export const appTagline = "Asio networking for C++ and Unreal Engine";
 export const appDescription =
-	"Asio non-boost networking for C++17 and Unreal Engine — UDP, TCP, HTTP and WebSocket with full control over connections and messages.";
+	"Asio non-boost networking for C++17 and Unreal Engine — UDP, TCP, HTTP, WebSocket and RTMP live video with full control over connections and messages.";
 export const appKeywords = [
 	"Asio",
 	"non-boost",
@@ -14,6 +14,9 @@ export const appKeywords = [
 	"TCP",
 	"HTTP",
 	"WebSocket",
+	"RTMP",
+	"RTMPS",
+	"live streaming",
 	"OpenSSL",
 	"TLS",
 	"header-only library",

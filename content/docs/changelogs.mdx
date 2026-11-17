@@ -3,6 +3,62 @@ title: Changelogs
 description: "Release notes for Internet Protocol: new features, breaking changes and fixes in the C++ library and the Unreal Engine plugin."
 ---
 
+## 3.1.0
+
+Unreal Engine plugin. Adds RTMP/RTMPS and live audio/video: receive streams from OBS or FFmpeg, serve RTMP viewers, pull from other servers and publish from Unreal. Existing modules are unchanged. See the [RTMP overview](/docs/Unreal/rtmp).
+
+### RTMP server
+
+* New [`RTMP Server`](/docs/Unreal/rtmp-server) (`URTMPServer`) and the `Create RTMPServer` subsystem node.
+* Accepts publishers (OBS, FFmpeg, another Unreal) on port 1935 and hands their media to receivers.
+* RTMPS through `Set Tls Options`, using the plugin's TLS layer.
+* `Set Allowed Stream Keys` restricts which keys may publish. A second publisher on a live key is refused.
+* Playback to RTMP clients (VLC, ffplay, OBS *Media Source*), off by default. Viewers use a **view key** that must differ from the stream key, so the publishing key is never handed out. Optional limit of viewers per stream.
+* Viewers have a bounded send queue: under congestion P-frames are dropped and the stream resumes at the next keyframe. Viewers stay connected while the publisher reconnects.
+* New events: `On Publish Started`, `On Publish Ended`, `On Play Started` and `On Play Ended`.
+
+### Receive
+
+* New [`RTMP Receiver`](/docs/Unreal/rtmp-receiver) (`UIPRtmpReceiver`): H.264/AAC decoded with Electra and played through the Media Framework.
+* `Get Video Texture` for materials and UMG, and `Create Audio Component` for spatialized sound.
+* Three ways to start: `Start From Server`, `Start Pull` (`rtmp://` and `rtmps://`, with reconnection and exponential backoff) and `Start Url` (`iprtmp://` or `rtmp(s)://`).
+* `Low Latency` (about 150 ms) and `Smooth` (about 1000 ms) jitter buffers, configurable in ms. Audio is the master clock.
+* `IP Rtmp Media Source` and an `iprtmp://` media player, also usable with Media Player, Media Texture and Media Plate.
+* `On Started`, `On Ended`, `On Error`, `On Frame` and `Get Stats` (fps, bitrate, buffer, drops, rebuffers, decoders).
+
+### Publish
+
+* New [`RTMP Publisher`](/docs/Unreal/rtmp-publisher) (`UIPRtmpPublisher`): streams the viewport, a render target or a scene capture to Twitch, YouTube, MediaMTX, nginx-rtmp or another Unreal.
+* H.264 encoded on the GPU through AVCodecs (NVENC, then AMF), with no CPU readback. AAC-LC 48 kHz stereo through Media Foundation.
+* Audio from the main submix, a chosen submix, or samples pushed with `Push Audio Samples`.
+* Bounded send queue that drops P-frames first, and reconnection with exponential backoff (1 to 30 s) that forces a keyframe.
+* `On State Changed`, `On Publishing`, `On Reconnecting`, `On Error` and `Get Stats` (fps, sent bitrate, drops, queue, RTT, reconnections).
+
+### Security
+
+* Stream keys and view keys are never logged, never saved and never `UPROPERTY`. URLs are logged as `rtmp://host/app/***`.
+* RTMPS certificates are always verified: the RTMP code never disables verification.
+
+### Native C++ API
+
+* `IRtmpPublishSession`, `IRtmpPlaySession` and `FRtmpIngestHub` (in the `InternetProtocol` module, no media dependencies) for custom pipelines.
+* Encoders and decoders are pluggable through `FIPMediaEncoders` and `FIPMediaDecoders`.
+
+### Example map
+
+* New `/InternetProtocol/Example/RTMP/RtmpExample` map: receive, play from a server and publish, with a flash and a beep to check audio/video sync. See [Examples](/docs/Unreal/examples#rtmp-example-map).
+
+### Requirements
+
+* The live audio/video modules (`InternetProtocolMedia`, `InternetProtocolExample`) require **UE 5.8 on Win64**. The networking modules, including the RTMP protocol, support 4.27 to 5.8.
+* Publishing needs an NVIDIA (NVENC) or AMD (AMF) GPU. AVCodecs is Experimental in UE 5.8.
+* Only H.264 and AAC are supported. `play2`, HEVC/AV1 over RTMP and recording to disk are not.
+
+### Other
+
+* `OpenSSL` is now a public dependency of the `InternetProtocol` module, so modules that include its headers get the OpenSSL include paths.
+* New automation tests: AMF0, chunks, FLV, handshake, publish/play loopback over TCP and TLS, view keys, playout clock, encoders, FFmpeg push and pull, publisher to receiver loopback and the example map.
+
 ## 3.0.2
 
 Unreal Engine plugin. The networking core was rewritten. Blueprint nodes keep the same names and pins, so existing graphs keep working.

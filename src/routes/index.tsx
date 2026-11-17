@@ -16,6 +16,7 @@ import {
 	Play,
 	Radio,
 	ShieldCheck,
+	Video,
 	Workflow,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -113,6 +114,8 @@ interface Protocol {
 	description: string;
 	slug: string;
 	ssl: boolean;
+	/** Docs pages to link to; defaults to the C++ and Unreal server pages. */
+	links?: { label: string; splat: string }[];
 }
 
 const protocols: Protocol[] = [
@@ -147,6 +150,15 @@ const protocols: Protocol[] = [
 			"Full-duplex text and binary frames over a single connection, with ping/pong control.",
 		slug: "websocket",
 		ssl: true,
+	},
+	{
+		name: "RTMP",
+		icon: Video,
+		description:
+			"Live audio and video in Unreal 5.8: receive OBS streams, serve viewers and publish to Twitch or YouTube.",
+		slug: "rtmp",
+		ssl: true,
+		links: [{ label: "Unreal", splat: "Unreal/rtmp" }],
 	},
 ];
 
@@ -187,7 +199,7 @@ function Home() {
 				title="Every protocol you need, client and server"
 				description="Each module ships as a header-only C++ class and as a Blueprint-ready Unreal Engine object."
 			>
-				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
 					{protocols.map((protocol) => (
 						<ProtocolCard key={protocol.name} protocol={protocol} />
 					))}
@@ -447,6 +459,10 @@ function Section({
 
 function ProtocolCard({ protocol }: { protocol: Protocol }) {
 	const { icon: Icon, name, description, slug, ssl } = protocol;
+	const docLinks = protocol.links ?? [
+		{ label: "C++", splat: `Header/${slug}-server` },
+		{ label: "Unreal", splat: `Unreal/${slug}-server` },
+	];
 	return (
 		<Card className="transition-colors hover:ring-primary/40">
 			<CardHeader>
@@ -465,8 +481,11 @@ function ProtocolCard({ protocol }: { protocol: Protocol }) {
 				<CardDescription>{description}</CardDescription>
 			</CardHeader>
 			<CardFooter className="mt-auto flex-wrap gap-2">
-				<DocLink splat={`Header/${slug}-server`}>C++</DocLink>
-				<DocLink splat={`Unreal/${slug}-server`}>Unreal</DocLink>
+				{docLinks.map((link) => (
+					<DocLink key={link.splat} splat={link.splat}>
+						{link.label}
+					</DocLink>
+				))}
 			</CardFooter>
 		</Card>
 	);

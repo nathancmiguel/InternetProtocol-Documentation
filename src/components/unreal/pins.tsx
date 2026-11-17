@@ -5,12 +5,15 @@ const scalarTypes = {
 	delegate: { label: "Delegate", color: "#ff3838" },
 	bool: { label: "Boolean", color: "#c40000" },
 	byte: { label: "Byte", color: "#00a08f" },
+	/** Unreal draws enum pins with the byte color. */
+	enum: { label: "Enum", color: "#00a08f" },
 	int: { label: "Integer", color: "#1fe3af" },
 	int64: { label: "Integer64", color: "#a9f5ac" },
 	float: { label: "Float", color: "#a1ff45" },
 	fstring: { label: "String", color: "#f00acb" },
 	struct: { label: "Structure", color: "#1d6fe0" },
 	object: { label: "Object Reference", color: "#00aaf5" },
+	class: { label: "Class Reference", color: "#8e1fd8" },
 	default: { label: "Wildcard", color: "#9a9a9a" },
 } as const;
 

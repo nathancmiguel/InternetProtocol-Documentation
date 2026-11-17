@@ -1,0 +1,164 @@
+---
+title: RTMP Overview
+description: "Live audio and video over RTMP/RTMPS in Unreal Engine: receive OBS or FFmpeg streams, serve viewers, pull from servers and publish to Twitch or YouTube."
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+
+Since **3.1.0** the plugin speaks RTMP and RTMPS (RTMP over TLS). Unreal can receive a live stream from OBS or FFmpeg and show it on any material, let RTMP players watch it, play a stream from another RTMP server, and publish the game itself to Twitch, YouTube or your own media server.
+
+Only **H.264 video** and **AAC audio** are supported. That covers OBS, FFmpeg, MediaMTX, nginx-rtmp, Twitch and YouTube.
+
+## Modules
+
+RTMP support is split in layers, so a game that only needs the protocol does not pay for the media dependencies.
+
+| Module | What it does | Engine |
+| --- | --- | --- |
+| `InternetProtocol` | RTMP/RTMPS protocol: [`RTMP Server`](/docs/Unreal/rtmp-server) (ingest and playback), plus the native C++ publish and play clients. No media dependencies. | 4.27 - 5.8 |
+| `InternetProtocolMedia` | Decoding, playback through the Media Framework, capture and encoding: [`RTMP Receiver`](/docs/Unreal/rtmp-receiver), [`RTMP Publisher`](/docs/Unreal/rtmp-publisher) and the RTMP media source. | **5.8, Win64** |
+| `InternetProtocolExample` | The [example map](/docs/Unreal/examples#rtmp-example-map) and its UI. Not needed by games. | 5.8, Win64 |
+
+<Callout type="warn" title="Requirements">
+  -   The live audio/video modules require **Unreal Engine 5.8 on Win64**: they use the Electra and AVCodecs APIs from 5.8.
+  -   Publishing needs an **NVIDIA (NVENC) or AMD (AMF) GPU**. There is no software H.264 encoder; without one of these GPUs, `Start` reports a clear error through `On Error`.
+</Callout>
+
+## Pick your flow
+
+| I want to... | Use | Guide |
+| --- | --- | --- |
+| Show an OBS / FFmpeg stream in my level | `RTMP Server` + `RTMP Receiver` | [Receive a stream](#receive-a-stream-obs--ffmpeg--unreal) |
+| Let VLC, ffplay or OBS watch that stream | `RTMP Server` playback | [Serve viewers](#serve-viewers-unreal--vlc--ffplay--obs) |
+| Play a stream from MediaMTX, nginx-rtmp... | `RTMP Receiver` (pull) | [Pull from a server](#pull-from-another-rtmp-server) |
+| Stream the game to Twitch, YouTube... | `RTMP Publisher` | [Publish from Unreal](#publish-from-unreal) |
+
+## Receive a stream (OBS / FFmpeg → Unreal)
+
+<Steps>
+  <Step>
+    Create an RTMP server with [`Create RTMPServer`](/docs/Unreal/subsystem#create-rtmp-server) and [`Open`](/docs/Unreal/rtmp-server#open) it on port `1935` (the RTMP default).
+  </Step>
+  <Step>
+    Create an [`RTMP Receiver`](/docs/Unreal/rtmp-receiver) and call [`Start From Server`](/docs/Unreal/rtmp-receiver#start-from-server) with the server, the app (for example `live`) and the stream key.
+  </Step>
+  <Step>
+    Put [`Get Video Texture`](/docs/Unreal/rtmp-receiver#get-video-texture) in a material parameter, and call [`Create Audio Component`](/docs/Unreal/rtmp-receiver#create-audio-component) on the actor that shows the screen to get spatialized sound.
+  </Step>
+  <Step>
+    In OBS, open **Settings > Stream**, choose *Custom*, set Server to `rtmp://<unreal machine>:1935/live` and use your stream key. Use x264 or NVENC H.264 with a keyframe interval of 1 to 2 s, and AAC audio.
+  </Step>
+</Steps>
+
+```cpp
+#include "rtmp/rtmpserver.h"
+#include "IPRtmpReceiver.h"
+
+URTMPServer* Server = NewObject<URTMPServer>(this);
+FServerBindOptions Bind;
+Bind.Address = TEXT("0.0.0.0");
+Bind.Port = 1935;
+Server->Open(Bind);
+
+UIPRtmpReceiver* Receiver = NewObject<UIPRtmpReceiver>(this);
+Receiver->StartFromServer(Server, TEXT("live"), StreamKey, EIPRtmpLatencyMode::LowLatency);
+ScreenMaterial->SetTextureParameterValue(TEXT("Video"), Receiver->GetVideoTexture()); // UMediaTexture
+Receiver->CreateAudioComponent(ScreenActor);                                          // spatialized sound
+```
+
+-   **Latency:** `Low Latency` targets about 150 ms of jitter buffer and `Smooth` about 1000 ms (configurable). Audio is the master clock.
+-   With FFmpeg: `ffmpeg -re -i video.mp4 -c:v libx264 -g 60 -c:a aac -f flv rtmp://<unreal machine>:1935/live/<stream key>`.
+
+## Serve viewers (Unreal → VLC / ffplay / OBS)
+
+Playback is **off by default**. Viewers use a **view key**, so the publishing key is never handed out.
+
+<Steps>
+  <Step>
+    Call [`Set Playback Enabled`](/docs/Unreal/rtmp-server#set-playback-enabled) on the server (`Max Viewers Per Stream = 0` means unlimited).
+  </Step>
+  <Step>
+    Call [`Set Playback Key`](/docs/Unreal/rtmp-server#set-playback-key) with the app, the stream key and a view key. The view key must be different from the stream key.
+  </Step>
+  <Step>
+    Open `rtmp://<unreal machine>:1935/live/<view key>` in VLC, `ffplay`, or an OBS *Media Source*.
+  </Step>
+</Steps>
+
+```cpp
+Server->SetPlaybackEnabled(true, /*MaxViewersPerStream*/ 0);          // 0 = unlimited
+Server->SetPlaybackKey(TEXT("live"), StreamKey, TEXT("watch-123"));    // view key must differ from the stream key
+```
+
+-   Each viewer costs the full stream bitrate in upload bandwidth.
+-   Each viewer has a bounded send queue: under congestion P-frames are dropped and the stream resumes at the next keyframe.
+-   Viewers stay connected while the publisher reconnects. Use `On Play Started`, `On Play Ended` and `Get Viewer Count` to follow them.
+
+## Pull from another RTMP server
+
+[`Start Pull`](/docs/Unreal/rtmp-receiver#start-pull) plays a stream from any RTMP server: MediaMTX, nginx-rtmp, or another Unreal with playback enabled.
+
+```cpp
+Receiver->StartPull(TEXT("rtmp://media.example.com:1935/live"), StreamKey, EIPRtmpLatencyMode::Smooth);
+```
+
+-   `rtmp://` and `rtmps://` are supported. For `rtmps://`, certificates are always verified.
+-   The stream key is kept out of the URL and never logged.
+-   Reconnection uses exponential backoff. A wrong key (`StreamNotFound` / `Unauthorized`) is reported through `On Error` and is not retried.
+
+## Publish from Unreal
+
+[`RTMP Publisher`](/docs/Unreal/rtmp-publisher) streams the viewport, a render target or a scene capture to MediaMTX, nginx-rtmp, Twitch, YouTube or another Unreal.
+
+```cpp
+#include "IPRtmpPublisher.h"
+
+FIPRtmpPublishConfig Config;
+Config.VideoSource = EIPPublishVideoSource::Viewport;   // or RenderTarget / SceneCapture
+Config.Width = 1280; Config.Height = 720; Config.FrameRate = 30;
+Config.VideoBitrateKbps = 4500; Config.KeyframeIntervalSeconds = 2;
+Config.AudioSource = EIPPublishAudioSource::Submix;     // main submix, or Manual (PushAudio) / None
+
+UIPRtmpPublisher* Publisher = NewObject<UIPRtmpPublisher>(this);
+Publisher->Start(TEXT("rtmp://live.twitch.tv/app"), StreamKey, Config);
+```
+
+-   **Video:** H.264 encoded on the GPU through the engine's AVCodecs (NVENC first, then AMF). There is no CPU readback.
+-   **Audio:** AAC-LC at 48 kHz stereo, encoded by Media Foundation, at 96, 128, 160 or 192 kbps.
+-   **Network:** bounded send queue, P-frames dropped first under congestion, reconnection with exponential backoff from 1 to 30 s and a keyframe forced after each reconnection.
+
+## Media Framework
+
+The receiver plays through the engine's Media Framework, so streams also work with `Media Player`, `Media Texture`, `Media Sound Component` and **Media Plate**. The plugin registers a media player for `iprtmp://` (stream published to this machine) and `rtmp://` / `rtmps://` (pull) URLs, with the `IP Rtmp Media Source` media source. See [Media Source](/docs/Unreal/rtmp-receiver#media-source).
+
+## Security
+
+-   Stream keys and view keys are never logged, never `UPROPERTY` and never saved. URLs are logged as `rtmp://host/app/***`.
+-   Avoid putting keys in URLs stored in assets: use [`Start Pull`](/docs/Unreal/rtmp-receiver#start-pull) (URL + key), [`Set Stream Key`](/docs/Unreal/rtmp-receiver#set-stream-key) on the media source, or [`Start`](/docs/Unreal/rtmp-publisher#start) (URL + key).
+-   [`Set Allowed Stream Keys`](/docs/Unreal/rtmp-server#set-allowed-stream-keys) restricts which keys may publish to your server.
+-   RTMPS uses the plugin's [TLS layer](/docs/Unreal/subsystem#security-context-options). The RTMP code never disables certificate verification.
+
+## Known limitations
+
+-   **Decode speed follows the engine frame rate:** Electra hands decoded pictures to the GPU through the RHI. If the game runs slower than the stream, frames are dropped.
+    -   Windows' background power throttling (EcoQoS) can cut a background Unreal process to about 20 fps. Keep the window in the foreground, or use the *Best performance* power mode.
+-   **AVCodecs is Experimental in UE 5.8**, so its API may change in later engine versions. Encoders and decoders are pluggable from C++ (`IIPVideoEncoder` / `IIPAudioEncoder` through `FIPMediaEncoders`, `IIPVideoDecoder` / `IIPAudioDecoder` through `FIPMediaDecoders`).
+-   **Not supported:** `play2`, HEVC/AV1 over RTMP (Enhanced RTMP) and recording to disk.
+
+## Native C++ API
+
+The `InternetProtocol` module also exposes the RTMP clients without any media dependency, for custom pipelines:
+
+| Class | Header | Purpose |
+| --- | --- | --- |
+| `IRtmpPublishSession` | `rtmp/rtmppublish.h` | Publishes already encoded H.264 (AVCC) and AAC frames to an RTMP/RTMPS server. |
+| `IRtmpPlaySession` | `rtmp/rtmpplay.h` | Plays a stream from an RTMP/RTMPS server into an `IRtmpMediaSink`. |
+| `FRtmpIngestHub` | `rtmp/rtmpmedia.h` | Delivers the media published to a local `URTMPServer` to an `IRtmpMediaSink`. |
+
+Their methods are thread-safe and non-blocking. Callbacks and sinks run on a network thread: copy or enqueue the data, never block, and never touch UObjects there.
+
+## Tests
+
+Automation tests live under `InternetProtocol.*` (Session Frontend, or `-ExecCmds="Automation RunTests InternetProtocol"`). They cover AMF0, chunks, FLV, the handshake, publish/play loopback over TCP and TLS, view keys, the encoders, FFmpeg push and pull, publisher to receiver loopback and the example map.
+
+Tests that need FFmpeg (in `PATH`), a real RHI or an NVIDIA/AMD GPU are skipped with a warning when those are missing.

@@ -6,7 +6,7 @@ description: "Internet Protocol subsystem for Unreal Engine: create UDP, TCP, HT
 import { Step, Steps } from "fumadocs-ui/components/steps";
 import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 
-The Internet Protocol Subsystem is a class designed to simplify the creation of UDP, TCP, HTTP, and WebSocket objects using blueprints
+The Internet Protocol Subsystem is a class designed to simplify the creation of UDP, TCP, HTTP, WebSocket and RTMP server objects using blueprints
 
 ## How to use
 
@@ -253,6 +253,24 @@ The Internet Protocol Subsystem is a class designed to simplify the creation of 
 
 <UFunction
   name="Create Json Object"
+  className="Internet Protocol Subsystem"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "object" }
+  ]}
+/>
+
+### Create RTMP Server
+
+-   Creates an [`RTMP Server`](/docs/Unreal/rtmp-server). New in 3.1.0.
+
+<UFunction
+  name="Create RTMPServer"
   className="Internet Protocol Subsystem"
   pure={false}
   inPins={[
