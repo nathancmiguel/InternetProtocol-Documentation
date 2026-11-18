@@ -8,8 +8,8 @@ import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 The RTMP server accepts publishers (OBS, FFmpeg, another Unreal) and makes their audio and video available to an [`RTMP Receiver`](/docs/Unreal/rtmp-receiver). It can also let RTMP clients (VLC, ffplay, OBS) watch those streams. See the [RTMP overview](/docs/Unreal/rtmp) for complete flows.
 
-<Callout title="Engine versions">
-  The server is part of the `InternetProtocol` module and works from UE 4.27 to 5.8. Decoding and playing the received stream (`RTMP Receiver`) requires UE 5.8 on Win64.
+<Callout type="warn" title="Unreal Engine 5.8 and DirectX 12 only">
+  RTMP is supported only on **Unreal Engine 5.8**, **Win64**, with the **DirectX 12** RHI. Set *Project Settings > Platforms > Windows > Default RHI* to DirectX 12. On DirectX 11 or Vulkan the GPU encoder refuses to start, and publishing fails with an error.
 </Callout>
 
 ## References

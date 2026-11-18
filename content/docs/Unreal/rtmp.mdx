@@ -15,12 +15,16 @@ RTMP support is split in layers, so a game that only needs the protocol does not
 
 | Module | What it does | Engine |
 | --- | --- | --- |
-| `InternetProtocol` | RTMP/RTMPS protocol: [`RTMP Server`](/docs/Unreal/rtmp-server) (ingest and playback), plus the native C++ publish and play clients. No media dependencies. | 4.27 - 5.8 |
-| `InternetProtocolMedia` | Decoding, playback through the Media Framework, capture and encoding: [`RTMP Receiver`](/docs/Unreal/rtmp-receiver), [`RTMP Publisher`](/docs/Unreal/rtmp-publisher) and the RTMP media source. | **5.8, Win64** |
-| `InternetProtocolExample` | The [example map](/docs/Unreal/examples#rtmp-example-map) and its UI. Not needed by games. | 5.8, Win64 |
+| `InternetProtocol` | RTMP/RTMPS protocol: [`RTMP Server`](/docs/Unreal/rtmp-server) (ingest and playback), plus the native C++ publish and play clients. No media dependencies. | 5.8, Win64, DX12 |
+| `InternetProtocolMedia` | Decoding, playback through the Media Framework, capture and encoding: [`RTMP Receiver`](/docs/Unreal/rtmp-receiver), [`RTMP Publisher`](/docs/Unreal/rtmp-publisher) and the RTMP media source. | 5.8, Win64, DX12 |
+| `InternetProtocolExample` | The [example map](/docs/Unreal/examples#rtmp-example-map) and its UI. Not needed by games. | 5.8, Win64, DX12 |
+
+<Callout type="warn" title="Unreal Engine 5.8 and DirectX 12 only">
+  RTMP is supported only on **Unreal Engine 5.8**, **Win64**, with the **DirectX 12** RHI. Set *Project Settings > Platforms > Windows > Default RHI* to DirectX 12. On DirectX 11 or Vulkan the GPU encoder refuses to start, and publishing fails with an error.
+</Callout>
 
 <Callout type="warn" title="Requirements">
-  -   The live audio/video modules require **Unreal Engine 5.8 on Win64**: they use the Electra and AVCodecs APIs from 5.8.
+  -   The live audio/video modules use the Electra and AVCodecs APIs from 5.8.
   -   Publishing needs an **NVIDIA (NVENC) or AMD (AMF) GPU**. There is no software H.264 encoder; without one of these GPUs, `Start` reports a clear error through `On Error`.
 </Callout>
 

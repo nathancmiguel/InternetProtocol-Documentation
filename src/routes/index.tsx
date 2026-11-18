@@ -155,7 +155,7 @@ const protocols: Protocol[] = [
 		name: "RTMP",
 		icon: Video,
 		description:
-			"Live audio and video in Unreal 5.8: receive OBS streams, serve viewers and publish to Twitch or YouTube.",
+			"Live audio and video in Unreal 5.8 (DirectX 12): receive OBS streams, serve viewers and publish to Twitch or YouTube.",
 		slug: "rtmp",
 		ssl: true,
 		links: [{ label: "Unreal", splat: "Unreal/rtmp" }],

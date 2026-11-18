@@ -50,7 +50,7 @@ Unreal Engine plugin. Adds RTMP/RTMPS and live audio/video: receive streams from
 
 ### Requirements
 
-* The live audio/video modules (`InternetProtocolMedia`, `InternetProtocolExample`) require **UE 5.8 on Win64**. The networking modules, including the RTMP protocol, support 4.27 to 5.8.
+* RTMP is supported only on **Unreal Engine 5.8**, **Win64**, with the **DirectX 12** RHI. The other networking modules still support 4.27 to 5.8.
 * Publishing needs an NVIDIA (NVENC) or AMD (AMF) GPU. AVCodecs is Experimental in UE 5.8.
 * Only H.264 and AAC are supported. `play2`, HEVC/AV1 over RTMP and recording to disk are not.
 

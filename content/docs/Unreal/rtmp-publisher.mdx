@@ -8,8 +8,11 @@ import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 The RTMP publisher streams video and audio from Unreal to any RTMP/RTMPS server: Twitch, YouTube, MediaMTX, nginx-rtmp, or another Unreal running an [`RTMP Server`](/docs/Unreal/rtmp-server). It captures the **viewport**, a **render target** or a **scene capture**, encodes H.264 on the GPU and AAC audio, and reconnects on its own. See the [RTMP overview](/docs/Unreal/rtmp) for complete flows.
 
-<Callout type="warn" title="Requirements">
-  -   The publisher lives in the `InternetProtocolMedia` module, which requires Unreal Engine 5.8 on Win64.
+<Callout type="warn" title="Unreal Engine 5.8 and DirectX 12 only">
+  RTMP is supported only on **Unreal Engine 5.8**, **Win64**, with the **DirectX 12** RHI. Set *Project Settings > Platforms > Windows > Default RHI* to DirectX 12. On DirectX 11 or Vulkan the GPU encoder refuses to start, and publishing fails with an error.
+</Callout>
+
+<Callout type="warn" title="GPU">
   -   It needs an **NVIDIA (NVENC) or AMD (AMF) GPU**: there is no software H.264 encoder. Without one of these GPUs, `Start` reports a clear error through `On Error`.
 </Callout>
 
