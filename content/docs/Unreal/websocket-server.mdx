@@ -41,6 +41,43 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   get={true}
 />
 
+### Use Tls
+
+-   **New in 4.0.** Encrypts the connection with TLS. With no [`Set Tls Options`](#set-tls-options) call, the secure default options are used.
+-   Applies to the next connection.
+
+<UVar
+  pin={{ name: "Use Tls", pintype: "bool" }}
+  get={true}
+/>
+
+### Sub Protocols
+
+-   **New in 4.0.** Subprotocols supported, in order of preference. The first one the client offers is selected.
+
+<UVar
+  pin={{ name: "Sub Protocols", pintype: "fstringarray" }}
+  get={true}
+/>
+
+### Ping Interval Seconds
+
+-   **New in 4.0.** Remotes send a Ping after this much silence. Default `20`, `0` = never.
+
+<UVar
+  pin={{ name: "Ping Interval Seconds", pintype: "float" }}
+  get={true}
+/>
+
+### Idle Timeout Seconds
+
+-   **New in 4.0.** Remotes are closed (`Operation timed out`) after this much time without any frame from the client. Default `60`, `0` = never.
+
+<UVar
+  pin={{ name: "Idle Timeout Seconds", pintype: "float" }}
+  get={true}
+/>
+
 ## Functions
 
 ### Is Open
@@ -69,7 +106,8 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 
 ### Clients
 
--   Gets a constant reference to the set of clients connected to the server.
+-   Returns a copy of the set of clients connected to the server (a reference before 4.0).
+-   A client stays in the set until its own `On Close` arrives.
 
 <UFunction
   name="Clients"
@@ -129,6 +167,26 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   ]}
 />
 
+### Set Tls Options
+
+-   **New in 4.0.** Turns TLS on with these options. See [Security Context Options](/docs/Unreal/subsystem#security-context-options).
+-   A TLS server needs a certificate and a private key.
+-   Applies to the next connection.
+
+<UFunction
+  name="Set Tls Options"
+  className="WSServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Sec Opts", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
 ## Events
 
 ### On Listening
@@ -171,6 +229,360 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 ### On Error
 
 -   Event triggered if any error occur during async process.
+
+<UEvents
+  name="On Error"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Error Code", pintype: "struct" }
+  ]}
+/>
+
+### On Upgrade Request
+
+-   **New in 4.0.** When bound, every valid upgrade request waits for your decision: call [`Accept Upgrade`](#accept-upgrade) or [`Reject Upgrade`](#reject-upgrade) on `Client`, for example after checking the `Origin` header or a token in `Request`.
+-   Requests left unanswered are dropped after `Handshake Timeout Seconds`.
+-   When not bound, every valid request is accepted automatically.
+-   A client asking for a wrong `Sec-WebSocket-Version` gets `426`.
+
+<UEvents
+  name="On Upgrade Request"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Client", pintype: "object" },
+    { name: "Request", pintype: "struct" }
+  ]}
+/>
+
+## Remote
+
+Each client connected to the server is a `WS Remote` (`UWSRemote`), given by [`On Client Accepted`](#on-client-accepted), [`On Upgrade Request`](#on-upgrade-request) and [`Clients`](#clients). In 4.0 the TLS server gives the same class: `WSRemoteSsl` was merged into it.
+
+### Accept Upgrade
+
+-   **New in 4.0.** Accepts the upgrade request received in `On Upgrade Request`.
+
+<UFunction
+  name="Accept Upgrade"
+  className="WSRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Reject Upgrade
+
+-   **New in 4.0.** Refuses the upgrade request with an HTTP status (for example `401` or `403`) and a reason, then closes the connection.
+
+<UFunction
+  name="Reject Upgrade"
+  className="WSRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Status", pintype: "int" },
+    { name: "Reason", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Is Open
+
+-   Return true if the connection is open.
+
+<UFunction
+  name="Is Open"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Local Endpoint
+
+-   Local endpoint of the connection.
+
+<UFunction
+  name="Local Endpoint"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Remote Endpoint
+
+-   Address and port of the client.
+
+<UFunction
+  name="Remote Endpoint"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Get Error Code
+
+-   Return a struct of the latest error code.
+
+<UFunction
+  name="Get Error Code"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Get Sub Protocol
+
+-   **New in 4.0.** Subprotocol agreed in the handshake (empty: none).
+
+<UFunction
+  name="Get Sub Protocol"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "fstring" }
+  ]}
+/>
+
+### Get Round Trip Time Ms
+
+-   **New in 4.0.** Round trip of the last Ping answered by a Pong, in ms (`-1`: none yet).
+
+<UFunction
+  name="Get Round Trip Time Ms"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "float" }
+  ]}
+/>
+
+### Get Stats
+
+-   **New in 4.0.** Traffic counters of the current connection: bytes and messages sent and received, queued bytes and the last ping round trip. See [Connection Stats](/docs/Unreal/options#connection-stats).
+
+<UFunction
+  name="Get Stats"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Write
+
+-   Sends a text message to the client.
+-   It returns false if the connection is closed or if the send queue limit is exceeded.
+-   Write with `Dataframe.Fin = false` to send a fragment. See [Dataframe](/docs/Unreal/options#dataframe).
+
+<UFunction
+  name="Write"
+  className="WSRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Message", pintype: "fstring" },
+    { name: "Dataframe", pintype: "struct" },
+    { name: "Callback", pintype: "delegate" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Write Buffer
+
+-   Sends a binary message to the client. Same rules as `Write`.
+
+<UFunction
+  name="Write Buffer"
+  className="WSRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Buffer", pintype: "bytearray" },
+    { name: "Dataframe", pintype: "struct" },
+    { name: "Callback", pintype: "delegate" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Ping
+
+-   Sends a ping.
+
+<UFunction
+  name="Ping"
+  className="WSRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Callback", pintype: "delegate" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Pong
+
+-   Sends a pong.
+
+<UFunction
+  name="Pong"
+  className="WSRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Callback", pintype: "delegate" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### End
+
+-   Closing handshake: sends a Close frame with `Code` and `Reason` and waits up to 5 seconds for the client's Close frame.
+
+<UFunction
+  name="End"
+  className="WSRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Code", pintype: "int" },
+    { name: "Reason", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Close
+
+-   Closes the connection immediately, without the closing handshake.
+
+<UFunction
+  name="Close"
+  className="WSRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Code", pintype: "int" },
+    { name: "Reason", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Remote Events
+
+#### On Connected
+
+-   The WebSocket upgrade completed. `Handshake` is the client request.
+
+<UEvents
+  name="On Connected"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Handshake", pintype: "struct" }
+  ]}
+/>
+
+#### On Unexpected Handshake
+
+-   The upgrade request was invalid.
+
+<UEvents
+  name="On Unexpected Handshake"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Handshake", pintype: "struct" }
+  ]}
+/>
+
+#### On Message
+
+-   A complete message was received.
+
+<UEvents
+  name="On Message"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Buffer", pintype: "bytearray" },
+    { name: "Is Binary", pintype: "bool" }
+  ]}
+/>
+
+#### On Ping
+
+-   A ping was received. A pong is sent back automatically.
+
+<UEvents
+  name="On Ping"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+#### On Pong
+
+-   A pong was received.
+
+<UEvents
+  name="On Pong"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+#### On Close
+
+-   The connection was closed. Fires exactly once, with the close code and reason.
+
+<UEvents
+  name="On Close"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Code", pintype: "int" },
+    { name: "Reason", pintype: "fstring" }
+  ]}
+/>
+
+#### On Error
+
+-   An error happened on this connection.
 
 <UEvents
   name="On Error"

@@ -1,0 +1,159 @@
+---
+title: Options and Structs
+description: "Reference of the Internet Protocol Unreal Engine plugin options and structs: client and server bind options, TCP framing, connection stats, error codes and HTTP messages."
+---
+
+Structs shared by the UDP, TCP, HTTP, WebSocket and RTMP classes. The defaults below are the ones of version 4.0.
+
+## Client Bind Options
+
+`FClientBindOptions`, passed to `Connect` on clients (UDP, TCP, WebSocket) and to `Set Host` on the HTTP client.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Address` | String | `localhost` | Host name or IP address of the server. IPv6 literals may be written `[::1]`. |
+| `Port` | String | `8080` | Port or service name. |
+| `Protocol` | [`EProtocolType`](#protocol-type) | `Any` | IP version to use. `Any` tries every resolved address. |
+| `Connect Timeout Seconds` | Float | `15` | DNS + connect + TLS handshake (+ WebSocket upgrade) must complete within this time. `0` = no limit. Fails with `Operation timed out`. |
+| `Max Pending Receive MB` | Integer | `8` | Received data not yet handled by the Game Thread. Above it the plugin stops reading, so the peer slows down; UDP drops datagrams instead. |
+| `No Delay` | Boolean | `true` | Disables Nagle's algorithm: small messages leave immediately (lower latency). |
+| `Keep Alive` | Boolean | `false` | TCP keep-alive probes detect dead peers on idle connections. |
+| `Max Queued MB` | Integer | `64` | Data waiting to be sent per connection. `Write` / `Send` fail (`Send queue is full`) above it. |
+| `Socket Receive Buffer Bytes` | Integer | `0` | OS socket receive buffer (`SO_RCVBUF`). `0` = OS default. Larger values absorb UDP bursts. |
+| `Socket Send Buffer Bytes` | Integer | `0` | OS socket send buffer (`SO_SNDBUF`). `0` = OS default. |
+| `Local Address` | String | empty | UDP client: local address to bind before connecting (empty = any). |
+| `Local Port` | Integer | `0` | UDP client: local port to bind before connecting (`0` = any). |
+
+## Server Bind Options
+
+`FServerBindOptions`, passed to `Open` (TCP, HTTP, WebSocket, RTMP servers) and `Bind` (UDP server).
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Address` | String | `localhost` | IP literal, `localhost` or empty (any address). Host names are not resolved and fail with `Invalid argument`. |
+| `Port` | Integer | `8080` | Port to listen on (0-65535). |
+| `Protocol` | [`EProtocolType`](#protocol-type) | `Any` | With `Any` and an empty address the server listens dual stack (IPv4 and IPv6) on `::`. |
+| `Max Connections` | Integer | `1024` | Connections above this are refused (closed right after accept). |
+| `Handshake Timeout Seconds` | Float | `10` | TLS handshake, HTTP headers and WebSocket upgrade must complete within this time. `0` = no limit. |
+| `Max Pending Receive MB` | Integer | `8` | Per connection, see [Client Bind Options](#client-bind-options). |
+| `No Delay` | Boolean | `true` | Disables Nagle's algorithm on accepted connections. |
+| `Keep Alive` | Boolean | `false` | TCP keep-alive probes on accepted connections. |
+| `Max Queued MB` | Integer | `64` | Data waiting to be sent per connection. |
+| `Socket Receive Buffer Bytes` | Integer | `0` | OS socket receive buffer. `0` = OS default. |
+| `Socket Send Buffer Bytes` | Integer | `0` | OS socket send buffer. `0` = OS default. |
+| `Reuse Address` | Boolean | `true` | Allows binding a port that is still in `TIME_WAIT`. |
+
+`Backlog` on the server classes is clamped to the maximum allowed by the OS.
+
+## Protocol Type
+
+`EProtocolType`
+
+| Value | Description |
+| --- | --- |
+| `V4` | IPv4 only. |
+| `V6` | IPv6 only. |
+| `Any` | **Default since 4.0.** Clients try every resolved address (IPv4 and IPv6); servers listen dual stack. |
+
+## TCP Framing Options
+
+`FTcpFramingOptions`, the `Framing` variable of the [TCP client](/docs/Unreal/tcp-client#framing) and [TCP server](/docs/Unreal/tcp-server#framing). It decides how the TCP byte stream is cut into messages. `Write` adds the framing automatically, and `On Message` receives one whole message at a time.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Mode` | [`ETcpFramingMode`](#tcp-framing-mode) | `Raw` | How messages are delimited. |
+| `Max Message Bytes` | Integer | 16 MiB | Larger messages are a protocol error: `On Error` (`Message too large`) and the connection is closed. |
+| `Delimiter` | String | `\n` | `Delimiter` mode only (UTF-8). |
+
+### TCP Framing Mode
+
+`ETcpFramingMode`
+
+| Value | Description |
+| --- | --- |
+| `Raw` | No framing: `On Message` receives whatever each read returned, so one `Write` may arrive split or merged with others. |
+| `Length Prefixed` | Every message is preceded by its length (4 bytes, big endian). |
+| `Delimiter` | Messages end with `Delimiter` (for example `\n` for line based protocols). The delimiter is not delivered. |
+
+Both sides must use the same mode.
+
+## Connection Stats
+
+`FConnectionStats`, returned by `Get Stats` on TCP and WebSocket connections.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Bytes Sent` | Integer64 | Bytes written to the network. |
+| `Bytes Received` | Integer64 | Bytes read from the network. |
+| `Messages Sent` | Integer64 | Messages sent with `Write` / `Write Buffer`. |
+| `Messages Received` | Integer64 | Messages delivered to `On Message`. |
+| `Queued Bytes` | Integer64 | Bytes waiting in the send queue. |
+| `Round Trip Ms` | Float | WebSocket: last Ping → Pong round trip in ms (`-1`: none yet). |
+
+## Error Code
+
+`FErrorCode`, returned by `Get Error Code` and sent by the `On Error` events and message sent callbacks.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Message` | String | Human readable message. |
+| `Value` | Integer | Error number. |
+| `Category` | [`EErrorCategory`](#error-category) | **New in 4.0.** Where `Value` comes from: the same number means different things in different categories. |
+
+### Error Category
+
+`EErrorCategory`
+
+| Value | Description |
+| --- | --- |
+| `None` | No error. |
+| `System` | Operating system / socket errors (connection refused, reset, host not found...). |
+| `SSL` | TLS errors (certificate verification, handshake). |
+| `Plugin` | Plugin errors (timeouts, queue full, invalid argument...). See [Errors](/docs/Unreal/about#errors). |
+| `Http` | HTTP protocol errors. |
+| `WebSocket` | WebSocket protocol errors. |
+
+## HTTP Request
+
+`FHttpRequest`, sent by the [HTTP client](/docs/Unreal/http-client) and received by the [HTTP server](/docs/Unreal/http-server) routes.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Method` | `ERequestMethod` | `GET` | `DEL`, `GET`, `HEAD`, `OPTIONS`, `PATCH`, `POST` or `PUT`. |
+| `Path` | String | `/` | Request path. |
+| `Version` | String | `1.1` | HTTP version. |
+| `Params` | Map String → String | | Query parameters (URL-decoded). |
+| `Headers` | Map String → String | | One value per header name. Repeated values are joined with `, ` (`Set-Cookie` with a new line). |
+| `Header List` | Array of [`FHttpHeaderField`](#http-header-field) | | **New in 4.0.** Every header in order, one entry per line (received), or extra headers to send that may repeat. |
+| `Route Params` | Map String → String | | **New in 4.0.** Server: values of the route parameters (`:id` / `*`) of the matched route. |
+| `Body` | String | | Text body (UTF-8). |
+| `Body Bytes` | Array of Byte | | **New in 4.0.** Binary body: sent instead of `Body` when not empty. Received bodies are always here too. |
+| `Timeout Seconds` | Float | `0` | **New in 4.0.** Client: fails the request with `Operation timed out` if the response did not arrive in time. `0` = no limit. |
+
+## HTTP Response
+
+`FHttpResponse`, received by the HTTP client and written by the server through the remote's `Headers`.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Status Code` | Integer | `200` | HTTP status. |
+| `Status Message` | String | | Reason phrase. |
+| `Version` | String | `1.1` | HTTP version. |
+| `Headers` | Map String → String | | One value per header name. |
+| `Header List` | Array of [`FHttpHeaderField`](#http-header-field) | | **New in 4.0.** Every header in order, for repeated headers such as several `Set-Cookie`. |
+| `Body` | String | | Text body. |
+| `Body Bytes` | Array of Byte | | **New in 4.0.** Binary body, sent instead of `Body` when not empty. |
+
+### HTTP Header Field
+
+`FHttpHeaderField`: one header line, with `Name` and `Value`.
+
+## Dataframe
+
+`FDataframe`, passed to the WebSocket `Write` and `Write Buffer` nodes.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Fin` | Boolean | `true` | `false` sends a fragment: the first one with the message opcode, the next ones as continuations, until a write with `Fin = true` ends the message. |
+| `Rsv1`, `Rsv2`, `Rsv3` | Boolean | `false` | Never sent: no WebSocket extension is negotiated. |
+| `Mask` | Boolean | `true` | Ignored on send: clients always mask and servers never mask (RFC 6455). |

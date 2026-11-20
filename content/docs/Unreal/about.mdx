@@ -18,46 +18,63 @@ Internet Protocol exposes UDP, TCP, HTTP, Websocket, RTMP and Json modules to th
 
 ## Supported Unreal Versions
 
-| Modules | UE4 | UE5 | Platforms |
-| --- | --- | --- | --- |
-| Networking (UDP, TCP, HTTP, WebSocket, TLS) | 4.27 | 5.2 - 5.8 | Win64 |
-| RTMP and live audio/video (server, receiver and publisher) | - | 5.8 | Win64, **DirectX 12 only** |
+| Modules | Engine | Platforms |
+| --- | --- | --- |
+| Networking (UDP, TCP, HTTP, WebSocket, TLS) | **UE 5** (tested on 5.8) | Win64 |
+| RTMP and live audio/video (server, receiver and publisher) | UE 5.8 | Win64, **DirectX 12 only** |
+
+<Callout type="warn" title="Unreal Engine 4.27">
+  Version 4.0 requires Unreal Engine 5. Projects on UE 4.27 must stay on the 3.x releases. See [Migrating to 4.0](/docs/Unreal/migration-4-0).
+</Callout>
 
 ## Threading
 
 Since 3.0.2 the plugin owns its network threads:
 
--   One shared I/O service is started with the module and runs on a small fixed pool (half of the CPU cores, between 1 and 4 threads). You no longer need `Join Threads` or `Stop Threads`; both are deprecated and do nothing.
+-   One shared I/O service runs on a small fixed pool (half of the CPU cores, between 1 and 4 threads). Since 4.0 it starts on first use, so commandlets that do not use the network do not start it. You no longer need `Join Threads` or `Stop Threads`; both are deprecated and do nothing.
 -   Every event and callback (`On Connected`, `On Message`, message sent callbacks, HTTP responses...) runs on the **Game Thread**, so you can use them directly in Blueprints.
 -   Each connection runs on its own strand: its handlers never run concurrently, while different connections run in parallel.
 -   Destroying an object while it still has pending operations is safe: results that arrive later are discarded instead of touching a destroyed object.
 -   The Game Thread never blocks on network work. Pending connections are closed when the engine shuts down.
+-   Since 4.0 the [subsystem](/docs/Unreal/subsystem) owns the objects it creates and closes them when the world ends (for example at the end of Play In Editor).
+-   Since 4.0 a connection stops reading when the Game Thread falls more than `Max Pending Receive MB` (8 MiB) behind, so the peer slows down instead of filling memory. UDP drops datagrams instead.
 
 ## Errors
 
-`Get Error Code` and the `On Error` events return an `FErrorCode` with a `Value` and a `Message`. Besides the errors reported by the OS, Asio and OpenSSL, the plugin now reports its own errors:
+`Get Error Code` and the `On Error` events return an [`FErrorCode`](/docs/Unreal/options#error-code) with a `Message`, a `Value` and, since 4.0, a `Category` (`System`, `SSL`, `Plugin`, `Http` or `WebSocket`): the same `Value` means different things in different categories. Besides the errors reported by the OS, Asio and OpenSSL, the plugin reports its own errors (category `Plugin`):
 
 | Message | When |
 | --- | --- |
 | Network service is not running | An object is used before the module started or after it shut down. |
 | Invalid argument | A host name, or a port outside 0-65535, was passed to a server `Open` / `Bind`. |
 | TLS configuration failed | The [Security Context Options](/docs/Unreal/subsystem#security-context-options) are invalid (bad certificate or key, key that does not match, server without a certificate). |
-| Send queue is full | HTTP client: the request could not be queued for sending. |
+| Send queue is full | More than `Max Queued MB` is waiting to be sent: `Write` / `Send` fail, or an HTTP request could not be queued. |
 | Malformed HTTP message | HTTP client: the server response could not be parsed. |
 | Connection closed | HTTP client: the connection was closed (or `Close` was called) while the request was pending. |
+| Operation timed out | **4.0:** `Connect Timeout Seconds`, `Handshake Timeout Seconds`, an idle timeout or an HTTP request `Timeout Seconds` expired. |
+| Operation cancelled | **4.0:** HTTP request cancelled with `Cancel`, or by `Set Host` to another host. |
+| Message too large | **4.0:** a TCP framed message is larger than `Max Message Bytes`. |
 
 WebSocket protocol problems are reported through the `On Close` code (`1002`, `1007`, `1009`) instead of an error.
 
 ## Limits
 
-| Limit | Value |
-| --- | --- |
-| Data waiting to be sent per TCP / TLS / WebSocket connection | 64 MiB (`Write` returns false beyond it) |
-| Datagrams waiting to be sent per UDP socket | 16 MiB (`Send` returns false beyond it) |
-| WebSocket message size | 64 MiB (larger messages close the connection with code `1009`) |
-| HTTP headers | 64 KiB |
-| HTTP body | 64 MiB |
+| Limit | Default | Configurable with |
+| --- | --- | --- |
+| Data waiting to be sent per connection | 64 MiB | `Max Queued MB` ([bind options](/docs/Unreal/options)) |
+| Received data waiting for the Game Thread | 8 MiB | `Max Pending Receive MB` |
+| Connections per server | 1024 | `Max Connections` |
+| Client connect (DNS + connect + TLS + upgrade) | 15 s | `Connect Timeout Seconds` |
+| Server handshake (TLS, HTTP headers, upgrade) | 10 s | `Handshake Timeout Seconds` |
+| UDP receive buffer | 64 KiB | (oversized datagrams are dropped and counted) |
+| Datagrams waiting to be sent per UDP socket | 16 MiB | |
+| TCP framed message | 16 MiB | `Max Message Bytes` ([framing](/docs/Unreal/options#tcp-framing-options)) |
+| WebSocket message size | 64 MiB | (larger messages close with code `1009`) |
+| WebSocket keep-alive | Ping after 20 s, close after 60 s idle | `Ping Interval Seconds`, `Idle Timeout Seconds` |
+| HTTP headers / body (server) | 64 KiB / 64 MiB | `Max Header Bytes`, `Max Body Bytes` |
+| HTTP server idle connection | 60 s | `Idle Timeout Seconds` |
+| HTTP unanswered request | 503 after 30 s | `Response Timeout Seconds` |
 
 ## Changelogs
 
-See the full [changelogs](/docs/changelogs). Latest: **3.0.2**, a rewrite of the networking core with a plugin-managed thread pool, secure-by-default TLS and many stability fixes.
+See the full [changelogs](/docs/changelogs). Latest: **4.0.0**, unified TLS classes, hardened protocols, new timeouts and limits, and many new features. See [Migrating to 4.0](/docs/Unreal/migration-4-0).

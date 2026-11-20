@@ -30,6 +30,28 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   </Step>
 </Steps>
 
+## Variables
+
+### Framing
+
+-   **New in 4.0.** How the TCP byte stream is cut into messages: `Raw` (default), `Length Prefixed` or `Delimiter`. Both sides must use the same mode. See [TCP Framing Options](/docs/Unreal/options#tcp-framing-options).
+-   Applies to the next connection (client) or to accepted connections (server).
+
+<UVar
+  pin={{ name: "Framing", pintype: "struct" }}
+  get={true}
+/>
+
+### Use Tls
+
+-   **New in 4.0.** Encrypts the connection with TLS. With no [`Set Tls Options`](#set-tls-options) call, the secure default options are used.
+-   Applies to the next connection.
+
+<UVar
+  pin={{ name: "Use Tls", pintype: "bool" }}
+  get={true}
+/>
+
 ## Functions
 
 ### Is Open
@@ -84,6 +106,7 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 
 -   Sends string data on the socket.
 -   It returns false if socket is closed, if buffer is empty or if the send queue limit is exceeded.
+-   With [`Framing`](#framing) enabled, the length prefix or the delimiter is added automatically. A message larger than `Max Message Bytes` fails with `Message too large`.
 
 <UFunction
   name="Write"
@@ -114,6 +137,7 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 
 -   Sends buffer data on the socket.
 -   It returns false if socket is closed, if buffer is empty or if the send queue limit is exceeded.
+-   With [`Framing`](#framing) enabled, the length prefix or the delimiter is added automatically. A message larger than `Max Message Bytes` fails with `Message too large`.
 
 <UFunction
   name="Write Buffer"
@@ -145,6 +169,7 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 
 -   Resolve the address and connect asynchronously. `On Connected` is triggered when the connection is established, `On Error` if it fails.
 -   It returns false if the socket is already open or connecting.
+-   Since 4.0 the connection must complete within `Connect Timeout Seconds` (15 s by default), and with `Protocol = Any` every resolved IPv4 and IPv6 address is tried. See [Client Bind Options](/docs/Unreal/options#client-bind-options).
 
 <UFunction
   name="Connect"
@@ -172,6 +197,38 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   inPins={[
     { name: "", pintype: "exec" },
     { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Get Stats
+
+-   **New in 4.0.** Traffic counters of the current connection: bytes and messages sent and received, and queued bytes. See [Connection Stats](/docs/Unreal/options#connection-stats).
+
+<UFunction
+  name="Get Stats"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Set Tls Options
+
+-   **New in 4.0.** Turns TLS on with these options. See [Security Context Options](/docs/Unreal/subsystem#security-context-options).
+-   The server certificate is verified with these options.
+-   Applies to the next connection.
+
+<UFunction
+  name="Set Tls Options"
+  className="TCPClient"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Sec Opts", pintype: "struct" }
   ]}
   outPins={[
     { name: "", pintype: "exec" }

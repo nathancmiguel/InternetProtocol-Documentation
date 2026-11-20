@@ -8,6 +8,8 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 
 The Internet Protocol Subsystem is a class designed to simplify the creation of UDP, TCP, HTTP, WebSocket and RTMP server objects using blueprints
 
+Since 4.0 the subsystem owns the objects it creates: they stay alive while the world exists and are closed when it ends (for example at the end of Play In Editor). You no longer need `Add To Root`, which is deprecated.
+
 ## How to use
 
 <Steps>
@@ -285,7 +287,7 @@ The Internet Protocol Subsystem is a class designed to simplify the creation of 
 
 ## Security Context Options
 
-Every `Create ... Ssl` node takes a `SecOpts` struct (`FSecurityContextOpts`). One TLS context is built per object when it is created, and shared by all its connections.
+Every `Create ... Ssl` node takes a `SecOpts` struct (`FSecurityContextOpts`). Since 4.0 the same struct can be passed to the `Set Tls Options` node of any TCP, WebSocket or HTTP client and server, which turns TLS on. One TLS context is built per object when it is created, and shared by all its connections.
 
 <Callout title="Secure by default (3.0.2)">
   -   TLS 1.2 is the minimum version (SSLv2/3, TLS 1.0/1.1 and compression are disabled). TLS 1.3 is used when both sides support it.

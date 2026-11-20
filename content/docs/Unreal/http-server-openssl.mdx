@@ -37,6 +37,10 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 -   `SecOpts` configures certificates, keys and verification. See [Security Context Options](/docs/Unreal/subsystem#security-context-options) for every field and its default.
 -   Since 3.0.2 the connection is secure by default: TLS 1.2+, peer verification with the system root certificates and, for clients, host name verification + SNI.
 
+<Callout title="4.0: one class for TLS and plain connections">
+  Since 4.0, `HttpServerSsl` is the [`HttpServer`](/docs/Unreal/http-server) class with [`Use Tls`](/docs/Unreal/http-server#use-tls) turned on. You can also use a plain `HttpServer` and call [`Set Tls Options`](/docs/Unreal/http-server#set-tls-options) with a certificate and a private key before `Open`. The connections it accepts are the shared `HttpRemote` class.
+</Callout>
+
 ## Functions
 
-This class has the same functions from `HttpServer`.
+This class has the same variables, functions and events as [`HttpServer`](/docs/Unreal/http-server).

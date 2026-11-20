@@ -30,6 +30,14 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   </Step>
 </Steps>
 
+<Callout title="Fixes in 4.0">
+  -   `Try Get Object Field` no longer crashes when the field is missing.
+  -   `To String` on an unset object returns an empty string.
+  -   `Try Get Byte Array Field` fills its result, and bool arrays are written as JSON booleans.
+  -   Integer64 values keep every digit, and numeric strings are read as Integer64 too.
+  -   `Set Object Field` / `Set Object Array Field` refuse cycles (an object containing itself).
+</Callout>
+
 ## Nodes
 
 ### Construct Json

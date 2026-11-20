@@ -37,6 +37,10 @@ import { ImageZoom } from 'fumadocs-ui/components/image-zoom';
 -   `SecOpts` configures certificates, keys and verification. See [Security Context Options](/docs/Unreal/subsystem#security-context-options) for every field and its default.
 -   Since 3.0.2 the connection is secure by default: TLS 1.2+, peer verification with the system root certificates and, for clients, host name verification + SNI.
 
+<Callout title="4.0: one class for TLS and plain connections">
+  Since 4.0, `HttpClientSsl` is the [`HttpClient`](/docs/Unreal/http-client) class with [`Use Tls`](/docs/Unreal/http-client#use-tls) turned on. You can also use a plain `HttpClient`, set `Use Tls` or call [`Set Tls Options`](/docs/Unreal/http-client#set-tls-options) before connecting.
+</Callout>
+
 ## Functions
 
-This class has the same functions from `HttpClient`
+This class has the same variables, functions and events as [`HttpClient`](/docs/Unreal/http-client).

@@ -3,6 +3,81 @@ title: Changelogs
 description: "Release notes for Internet Protocol: new features, breaking changes and fixes in the C++ library and the Unreal Engine plugin."
 ---
 
+## 4.0.0
+
+Unreal Engine plugin. Unifies the TLS classes, hardens every protocol and adds many features. Most Blueprints keep working, but **read [Migrating to 4.0](/docs/Unreal/migration-4-0)** before updating a project.
+
+### Breaking changes
+
+* **Requires Unreal Engine 5** (tested on 5.8). Use the 3.x releases for UE 4.27.
+* TLS lives on the base classes: every TCP, WebSocket and HTTP client and server has `Use Tls` and `Set Tls Options`. The `*Ssl` client and server classes are kept as subclasses with TLS on, so existing Blueprints keep working.
+* `TCPRemoteSsl`, `WSRemoteSsl` and `HttpRemoteSsl` were merged into `TCPRemote`, `WSRemote` and `HttpRemote` (CoreRedirects keep old assets loading). `Scripts/migrate_4_0.py` re-saves Blueprints and maps against the new classes.
+* `Add To Root`, `Remove From Root` and `Is Rooted` are deprecated: keep the object in a variable instead.
+* `Clients` on the servers returns a copy. HTTP `Request` returns the request id. `EOutputExecPins` is a scoped enum in C++.
+* New defaults: connect timeout 15 s, server handshake timeout 10 s, HTTP server idle timeout 60 s, `503` after 30 s without a response, WebSocket ping after 20 s and idle close after 60 s, `Max Connections` 1024, receive backpressure at 8 MiB, `Protocol = Any`, `No Delay` on, case-sensitive HTTP routes. See the [table of new defaults](/docs/Unreal/migration-4-0#behaviour-changes-new-defaults).
+
+### Connections
+
+* Timeouts: `Connect Timeout Seconds` on clients (DNS + connect + TLS + WebSocket upgrade) and `Handshake Timeout Seconds` on servers. Idle timeouts report `Operation timed out`.
+* `Max Connections` on servers, and `Backlog` clamped to the OS maximum.
+* Receive backpressure: TCP, TLS and WebSocket stop reading while the Game Thread is more than `Max Pending Receive MB` behind; UDP drops and counts datagrams.
+* `EProtocolType::Any` (new default): clients try every resolved address, servers listen dual stack on `::`, and `[::1]` literals are accepted.
+* New [bind options](/docs/Unreal/options): `No Delay`, `Keep Alive`, `Max Queued MB`, socket buffer sizes, and a local address/port for UDP clients.
+* `FErrorCode.Category` (`System`, `SSL`, `Plugin`, `Http`, `WebSocket`). A full send queue reports `Send queue is full`.
+* `Get Stats` on TCP and WebSocket connections: bytes and messages sent and received, queued bytes and ping round trip.
+* Graceful TCP close sends FIN and drains until the peer closes. `Close` followed by `Connect` keeps the `On Close` of the old session.
+* Servers keep each remote in `Clients` until its own `On Close` arrives.
+* Repeated log warnings and accept errors are rate limited.
+
+### TCP
+
+* Message framing with `Framing`: `Raw` (default), `Length Prefixed` (u32 big endian) or `Delimiter`, with `Max Message Bytes`. `Write` adds the framing and `On Message` receives whole messages.
+
+### UDP
+
+* Broadcast (`Set Broadcast`) and multicast (`Join Multicast Group`, `Leave Multicast Group`, `Set Multicast TTL`, `Set Multicast Loopback`).
+* 64 KiB receive buffer by default. Oversized datagrams are dropped and counted instead of being fatal, and Windows ICMP resets no longer close the socket.
+
+### WebSocket
+
+* `Connect Url` with `ws://` and `wss://`.
+* Automatic ping after `Ping Interval Seconds` of silence and idle close after `Idle Timeout Seconds`, on clients and server remotes.
+* `Auto Reconnect` on clients, with 1, 2, 4... s backoff up to `Reconnect Max Delay Seconds`. Never after `Close` or `End`.
+* Subprotocols: `Sub Protocols` on servers, offered by clients with the `Sec-WebSocket-Protocol` header, and `Get Sub Protocol`.
+* `On Upgrade Request` on servers, answered with `Accept Upgrade` / `Reject Upgrade` (for example to check `Origin` or a token).
+* Fragmented messages with `Dataframe.Fin = false`, empty messages, and `Get Round Trip Time Ms`.
+* Protocol correctness: frames with RSV bits are refused (`1002`), extensions are never negotiated, close codes `1012`-`1014` are accepted, unsendable close codes are replaced by `1000`, and a wrong `Sec-WebSocket-Version` gets `426`.
+
+### HTTP client
+
+* Binary bodies (`Body Bytes`) and repeated headers (`Header List`, for example several `Set-Cookie`).
+* `Request` returns an id for `Cancel`, and requests have their own `Timeout Seconds`.
+* `On Progress` every 64 KiB, `Max Redirects` (same host), and `Set Url` with `http://` and `https://`.
+* Interim `1xx` responses are skipped. `Set Host` to another host cancels pending requests (`Operation cancelled`). An idempotent request whose reused connection closed before any response byte is resent once.
+
+### HTTP server
+
+* Route parameters (`/users/:id`, `/files/*` in `Route Params`), exact routes first, `405` with `Allow`, `HEAD` falling back to `GET`, and `Expect: 100-continue`.
+* Streamed responses: `Begin Stream`, `Write Chunk`, `Write Chunk Buffer` and `End Stream`.
+* `Response Timeout Seconds` (`503`), `Max Header Bytes` (`431`) and `Max Body Bytes` (`413`). A handler that sets `Connection: close` closes the connection.
+* Strict parsing: bare CR/LF, obsolete line folding, invalid header names, CR/LF in the path or host, HTTP/1.1 requests without `Host` and ambiguous `Transfer-Encoding` are refused. Pipelined input is bounded while a response is pending.
+
+### JSON
+
+* `Try Get Object Field` no longer crashes on missing fields, `To String` on an unset object returns an empty string, `Try Get Byte Array Field` fills its result, and bool arrays are JSON booleans.
+* Integer64 values keep every digit, and numeric strings are read as Integer64.
+* `Set Object Field` / `Set Object Array Field` refuse cycles.
+
+### RTMP
+
+* The publisher refuses to start outside DirectX 12 with a clear `On Error`, instead of crashing the GPU on D3D11.
+* The example module builds for Game and Shipping packages.
+
+### Other
+
+* I/O threads start on first use, and the subsystem owns the objects it creates and closes them when the world ends.
+* New automation tests for transports, TCP framing and stats, UDP multicast and large datagrams, WebSocket fragments, subprotocols, upgrade accept/reject, reconnect and ping, HTTP parsing, routing, streaming, redirects, timeouts and cancel, and JSON.
+
 ## 3.1.0
 
 Unreal Engine plugin. Adds RTMP/RTMPS and live audio/video: receive streams from OBS or FFmpeg, serve RTMP viewers, pull from other servers and publish from Unreal. Existing modules are unchanged. See the [RTMP overview](/docs/Unreal/rtmp).

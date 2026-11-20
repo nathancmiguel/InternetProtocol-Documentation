@@ -2,9 +2,11 @@
     "title": "Unreal Engine Plugin",
     "pages": [
         "about",
+        "migration-4-0",
         "examples",
         "subsystem",
         "function-library",
+        "options",
         "udp-server",
         "tcp-server",
         "tcp-server-openssl",

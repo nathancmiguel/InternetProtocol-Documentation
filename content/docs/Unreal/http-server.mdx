@@ -42,10 +42,48 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 
 ### Idle Timeout Seconds
 
--    Set/Get timeout value in seconds
+-    Set/Get timeout value in seconds. Idle connections are closed after this time.
+-    Since 4.0 the default is `60` (it was `0`, never). `0` disables it.
 
 <UVar 
   pin={{ name: "Idle Timeout Seconds", pintype: "byte" }}
+  get={true}
+/>
+
+### Use Tls
+
+-   **New in 4.0.** Encrypts the connection with TLS. With no [`Set Tls Options`](#set-tls-options) call, the secure default options are used.
+-   Applies to the next connection.
+
+<UVar
+  pin={{ name: "Use Tls", pintype: "bool" }}
+  get={true}
+/>
+
+### Response Timeout Seconds
+
+-   **New in 4.0.** A request whose handler has not called `Write` after this many seconds is answered with `503`. Default `30`, `0` = never.
+
+<UVar
+  pin={{ name: "Response Timeout Seconds", pintype: "float" }}
+  get={true}
+/>
+
+### Max Header Bytes
+
+-   **New in 4.0.** Largest request line + headers accepted. Larger requests get `431`. Default 64 KiB.
+
+<UVar
+  pin={{ name: "Max Header Bytes", pintype: "int" }}
+  get={true}
+/>
+
+### Max Body Bytes
+
+-   **New in 4.0.** Largest request body accepted. Larger requests get `413`. Default 64 MiB.
+
+<UVar
+  pin={{ name: "Max Body Bytes", pintype: "int64" }}
   get={true}
 />
 
@@ -77,7 +115,8 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 
 ### Clients
 
--   Gets a constant reference to the set of clients connected to the server.
+-   Returns a copy of the set of clients connected to the server (a reference before 4.0).
+-   A client stays in the set until its own `On Close` arrives.
 
 <UFunction
   name="Clients"
@@ -138,12 +177,23 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 />
 
 <Callout title="Routing">
-  Requests are routed on the Game Thread to the callbacks below. Since 3.0.2:
+  Requests are routed on the Game Thread to the callbacks below.
 
   -   A request whose path has no callback is answered automatically with `404 Not Found`.
   -   A malformed request is answered automatically with `400`, `413`, `431`, `501` or `505`, and the connection is closed.
   -   Requests pipelined on the same connection are answered in the order they arrived.
   -   Responses to `HEAD` requests are sent without a body.
+</Callout>
+
+<Callout title="Routes and parameters (4.0)">
+  -   Routes are **case-sensitive**. Exact routes are tried first.
+  -   `:name` segments and a trailing `*` capture values into `Route Params` of the request. For example `/users/:id` matches `/users/42` with `id = 42`, and `/files/*` matches everything below `/files/`.
+  -   A path that exists only for other methods gets `405 Method Not Allowed` with an `Allow` header.
+  -   `HEAD` falls back to the `GET` route when there is no `HEAD` route.
+  -   `Expect: 100-continue` is answered automatically.
+  -   A handler that sets `Connection: close` in the response closes the connection after it is sent.
+  -   A handler that never calls `Write` gets an automatic `503` after [`Response Timeout Seconds`](#response-timeout-seconds).
+  -   The parser rejects malformed headers (bare LF, folded lines, spaces before `:`), CR/LF in the path or host, HTTP/1.1 requests without `Host` and ambiguous framing.
 </Callout>
 
 ### All
@@ -378,6 +428,26 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   ]}
 />
 
+### Set Tls Options
+
+-   **New in 4.0.** Turns TLS on with these options. See [Security Context Options](/docs/Unreal/subsystem#security-context-options).
+-   A TLS server needs a certificate and a private key.
+-   Applies to the next connection.
+
+<UFunction
+  name="Set Tls Options"
+  className="Http Server"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Sec Opts", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
 ## Events
 
 ### On Close
@@ -405,3 +475,201 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   ]}
 />
 
+## Remote
+
+Each route callback receives the request and an `Http Remote` (`UHttpRemote`), the connection that will carry the response. Fill its `Headers` (status, headers and body) and call `Write`. In 4.0 the TLS server gives the same class: `HttpRemoteSsl` was merged into it.
+
+### Headers
+
+-   The response to send: `Status Code`, `Headers`, `Header List`, `Body` or `Body Bytes`. See [HTTP Response](/docs/Unreal/options#http-response).
+
+<UVar
+  pin={{ name: "Headers", pintype: "struct" }}
+  get={true}
+/>
+
+### Write
+
+-   Sends the response in `Headers`. Each request must be answered once.
+
+<UFunction
+  name="Write"
+  className="HttpRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Callback", pintype: "delegate" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Begin Stream
+
+-   **New in 4.0.** Starts a streamed response with the current `Headers` (status and headers, no `Content-Length`).
+-   Send the body with `Write Chunk` / `Write Chunk Buffer` and finish with `End Stream`. HTTP/1.1 uses chunked encoding; HTTP/1.0 streams until the connection closes.
+
+<UFunction
+  name="Begin Stream"
+  className="HttpRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Write Chunk
+
+-   **New in 4.0.** Sends a text part of a streamed response.
+
+<UFunction
+  name="Write Chunk"
+  className="HttpRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Data", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Write Chunk Buffer
+
+-   **New in 4.0.** Sends a binary part of a streamed response.
+
+<UFunction
+  name="Write Chunk Buffer"
+  className="HttpRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Data", pintype: "bytearray" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### End Stream
+
+-   **New in 4.0.** Finishes a streamed response.
+
+<UFunction
+  name="End Stream"
+  className="HttpRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Is Open
+
+-   Return true if the connection is open.
+
+<UFunction
+  name="Is Open"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Local Endpoint
+
+-   Local endpoint of the connection.
+
+<UFunction
+  name="Local Endpoint"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Remote Endpoint
+
+-   Address and port of the client.
+
+<UFunction
+  name="Remote Endpoint"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Get Error Code
+
+-   Return a struct of the latest error code.
+
+<UFunction
+  name="Get Error Code"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Close
+
+-   Closes the connection.
+
+<UFunction
+  name="Close"
+  className="HttpRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Remote Events
+
+#### On Close
+
+-   The connection was closed.
+
+<UEvents
+  name="On Close"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+#### On Error
+
+-   An error happened on this connection.
+
+<UEvents
+  name="On Error"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Error Code", pintype: "struct" }
+  ]}
+/>

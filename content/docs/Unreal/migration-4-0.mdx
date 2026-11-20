@@ -1,0 +1,66 @@
+---
+title: Migrating to 4.0
+description: "How to update an Unreal Engine project from Internet Protocol 3.x to 4.0: unified TLS classes, merged remote classes, new defaults, deprecated nodes and the migration script."
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+
+Version 4.0 unifies the TLS classes, hardens every protocol and changes a few defaults. Most Blueprints keep working without changes, but read this page before updating a project. See the [changelog](/docs/changelogs#400) for the full list of changes.
+
+<Callout type="warn" title="Unreal Engine 5 only">
+  Version 4.0 requires **Unreal Engine 5** (tested on 5.8). Use the 3.x releases for UE 4.27.
+</Callout>
+
+## Steps
+
+<Steps>
+  <Step>
+    **Back up or commit your project.** The migration script saves assets in place.
+  </Step>
+  <Step>
+    Replace the plugin folder with version 4.0 and open the project. The plugin's `CoreRedirects` (`Config/DefaultInternetProtocol.ini`) make old assets load with the new classes.
+  </Step>
+  <Step>
+    Close every open Blueprint editor and run `Scripts/migrate_4_0.py` from **Tools > Execute Python Script** (requires the *Python Editor Script Plugin*). It recompiles and re-saves every Blueprint, Widget Blueprint and map under `/Game`, so they no longer depend on the redirects.
+
+    Headless alternative:
+    ```bash
+    UnrealEditor-Cmd.exe <Project>.uproject -ExecutePythonScript="<plugin>/Scripts/migrate_4_0.py /Game"
+    ```
+  </Step>
+  <Step>
+    Open the Blueprints listed in the log as `migrate_4_0: ERROR` and fix the nodes shown.
+  </Step>
+  <Step>
+    Review the [new defaults](#behaviour-changes-new-defaults) below: timeouts and limits that did not exist in 3.x may now close connections your project kept open.
+  </Step>
+</Steps>
+
+## Class changes
+
+-   **TLS on the base classes.** Every client and server (`TCP`, `WebSocket`, `HTTP`) now has a `Use Tls` variable and a `Set Tls Options` node. `TCPClientSsl`, `TCPServerSsl`, `WSClientSsl`, `WSServerSsl`, `HttpClientSsl` and `HttpServerSsl` still exist: they are the same classes with TLS turned on, so existing Blueprints keep working.
+-   **Remotes are shared.** `TCPRemoteSsl`, `WSRemoteSsl` and `HttpRemoteSsl` were merged into `TCPRemote`, `WSRemote` and `HttpRemote`. The CoreRedirects keep old assets loading; event pins (for example `On Client Accepted`) now give the shared class.
+-   **Deprecated nodes:** `Add To Root`, `Remove From Root` and `Is Rooted`. Keep the object in a variable instead: objects referenced by a Blueprint stay alive. These nodes will be removed in a future version.
+-   **`Clients`** on the servers returns a copy of the set.
+-   **HTTP `Request`** now returns the request id (for `Cancel`). Existing graphs that ignore the return value are unaffected.
+-   **C++:** `Construct(SecOpts)` is kept on the Ssl classes. `EOutputExecPins` is now a scoped enum (`EOutputExecPins::Success`).
+
+## Behaviour changes (new defaults)
+
+| Area | 3.x | 4.0 |
+| --- | --- | --- |
+| Client connect | No limit | `Connect Timeout Seconds` = 15 s (DNS + connect + TLS + WebSocket upgrade) |
+| Server handshake | No limit | `Handshake Timeout Seconds` = 10 s (TLS, HTTP headers, WebSocket upgrade) |
+| HTTP server idle connections | Never closed | Closed after 60 s (`Idle Timeout Seconds`) |
+| Unanswered HTTP request | Hangs | `503` after `Response Timeout Seconds` (30 s) |
+| WebSocket keep-alive | None | Ping after 20 s of silence, close after 60 s without data (`Ping Interval Seconds` / `Idle Timeout Seconds`, `0` disables) |
+| Server connections | Unlimited | `Max Connections` = 1024 |
+| Slow Game Thread | Unbounded buffering | Stops reading above `Max Pending Receive MB` (8); UDP drops instead |
+| IP version | `V4` | `Any` (IPv4 and IPv6; servers listen dual stack) |
+| TCP latency | Nagle on | `No Delay` on |
+| UDP receive buffer | 16 KiB | 64 KiB; oversized datagrams are dropped and counted |
+| HTTP parsing | Lenient | Rejects malformed headers (bare LF, folded lines, spaces before `:`), HTTP/1.1 requests without `Host` and ambiguous framing |
+| HTTP routes | Case-insensitive | Case-sensitive |
+| WebSocket close codes | Sent as given | Codes that cannot be sent (`1005`, `1006`, `1015`, unregistered) are replaced by `1000` |
+
+All of these are configurable: see [Options and Structs](/docs/Unreal/options) and the variables of each class.

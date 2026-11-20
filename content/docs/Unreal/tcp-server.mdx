@@ -40,6 +40,26 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   get={true}
 />
 
+### Framing
+
+-   **New in 4.0.** How the TCP byte stream is cut into messages: `Raw` (default), `Length Prefixed` or `Delimiter`. Both sides must use the same mode. See [TCP Framing Options](/docs/Unreal/options#tcp-framing-options).
+-   Applies to the next connection (client) or to accepted connections (server).
+
+<UVar
+  pin={{ name: "Framing", pintype: "struct" }}
+  get={true}
+/>
+
+### Use Tls
+
+-   **New in 4.0.** Encrypts the connection with TLS. With no [`Set Tls Options`](#set-tls-options) call, the secure default options are used.
+-   Applies to the next connection.
+
+<UVar
+  pin={{ name: "Use Tls", pintype: "bool" }}
+  get={true}
+/>
+
 ## Nodes
 
 ### Is Open
@@ -68,7 +88,8 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 
 ### Clients
 
--   Gets a constant reference to the set of clients connected to the server.
+-   Returns a copy of the set of clients connected to the server (a reference before 4.0).
+-   A client stays in the set until its own `On Close` arrives.
 
 <UFunction
   name="Clients"
@@ -128,6 +149,26 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   ]}
 />
 
+### Set Tls Options
+
+-   **New in 4.0.** Turns TLS on with these options. See [Security Context Options](/docs/Unreal/subsystem#security-context-options).
+-   A TLS server needs a certificate and a private key.
+-   Applies to the next connection.
+
+<UFunction
+  name="Set Tls Options"
+  className="TCPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Sec Opts", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
 ## Events
 
 ### On Listening
@@ -170,6 +211,182 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 ### On Error
 
 -   Event triggered if any error occur during async process.
+
+<UEvents
+  name="On Error"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Error Code", pintype: "struct" }
+  ]}
+/>
+
+## Remote
+
+Each client connected to the server is a `TCP Remote` (`UTCPRemote`), given by [`On Client Accepted`](#on-client-accepted) and by [`Clients`](#clients). In 4.0 the TLS server gives the same class: `TCPRemoteSsl` was merged into it.
+
+### Is Open
+
+-   Return true if the connection is open.
+
+<UFunction
+  name="Is Open"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Local Endpoint
+
+-   Local endpoint of the connection.
+
+<UFunction
+  name="Local Endpoint"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Remote Endpoint
+
+-   Address and port of the client.
+
+<UFunction
+  name="Remote Endpoint"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Get Error Code
+
+-   Return a struct of the latest error code.
+
+<UFunction
+  name="Get Error Code"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Get Stats
+
+-   **New in 4.0.** Traffic counters of the current connection: bytes and messages sent and received, and queued bytes. See [Connection Stats](/docs/Unreal/options#connection-stats).
+
+<UFunction
+  name="Get Stats"
+  pure={true}
+  outPins={[
+    { name: "Return Value", pintype: "struct" }
+  ]}
+/>
+
+### Write
+
+-   Sends string data to the client.
+-   It returns false if the connection is closed, if the buffer is empty or if the send queue limit is exceeded.
+-   With [`Framing`](#framing) enabled, the framing is added automatically.
+
+<UFunction
+  name="Write"
+  className="TCPRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Message", pintype: "fstring" },
+    { name: "Callback", pintype: "delegate" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Write Buffer
+
+-   Sends binary data to the client. Same rules as `Write`.
+
+<UFunction
+  name="Write Buffer"
+  className="TCPRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Buffer", pintype: "bytearray" },
+    { name: "Callback", pintype: "delegate" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Close
+
+-   Closes the connection gracefully. `On Close` will be triggered.
+
+<UFunction
+  name="Close"
+  className="TCPRemote"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Remote Events
+
+#### On Connected
+
+-   The connection is ready (for TLS servers, after the TLS handshake).
+
+<UEvents
+  name="On Connected"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+#### On Message
+
+-   A message was received. With framing, one whole message per event.
+
+<UEvents
+  name="On Message"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Buffer", pintype: "bytearray" },
+    { name: "Bytes Recv", pintype: "int" }
+  ]}
+/>
+
+#### On Close
+
+-   The connection was closed. Fires exactly once.
+
+<UEvents
+  name="On Close"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+#### On Error
+
+-   An error happened on this connection.
 
 <UEvents
   name="On Error"

@@ -41,6 +41,25 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   get={true}
 />
 
+### Use Tls
+
+-   **New in 4.0.** Encrypts the connection with TLS. With no [`Set Tls Options`](#set-tls-options) call, the secure default options are used.
+-   Applies to the next connection.
+
+<UVar
+  pin={{ name: "Use Tls", pintype: "bool" }}
+  get={true}
+/>
+
+### Max Redirects
+
+-   **New in 4.0.** Follows up to this many redirects (`301`, `302`, `303`, `307`, `308`) on the same host. A `303`, or a redirected `POST`, becomes a `GET`. Default `0`: redirects are delivered as responses.
+
+<UVar
+  pin={{ name: "Max Redirects", pintype: "int" }}
+  get={true}
+/>
+
 ## Functions
 
 ### Is Open
@@ -58,6 +77,7 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 ### Set Host
 
 -    Set address and port to resolve. Must be called before use 'Request' function.
+-    Since 4.0, setting another host cancels the in-flight and queued requests: their callbacks receive `Operation cancelled`.
 
 <UFunction
   name="Set Host"
@@ -79,6 +99,12 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 -   Requests are queued and sent one at a time over a single keep-alive connection, which is opened automatically when needed. You can call `Request` several times in a row.
 -   The callback fires exactly once per request: with the response, or with an `Error Code` if the connection fails, the response is malformed, the connection is closed or `Close` is called.
 -   For `HEAD` requests the response never has a body, whatever its headers say.
+-   **Since 4.0:**
+    -   It returns the request id, used by [`Cancel`](#cancel) and [`On Progress`](#on-progress).
+    -   `Timeout Seconds` in the request fails it with `Operation timed out` when the response does not arrive in time.
+    -   Binary bodies go in `Body Bytes`, and repeated headers (several `Set-Cookie`...) in `Header List`. See [HTTP Request](/docs/Unreal/options#http-request).
+    -   Interim `1xx` responses (`100`, `103`...) are skipped.
+    -   An idempotent request whose reused keep-alive connection closed before any response byte is sent again once, on a new connection.
 
 <UFunction
   name="Request"
@@ -91,7 +117,8 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
     { name: "Callback", pintype: "delegate" }
   ]}
   outPins={[
-    { name: "", pintype: "exec" }
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "int" }
   ]}
 />
 
@@ -119,5 +146,80 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   ]}
   outPins={[
     { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Set Url
+
+-   **New in 4.0.** Sets the host from a URL, `http://host[:port]/...` or `https://` (TLS is chosen from the scheme). The path is not used: set `Path` in each request.
+
+<UFunction
+  name="Set Url"
+  className="Http Client"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Url", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Cancel
+
+-   **New in 4.0.** Cancels a queued or in-flight request: its callback receives the `Operation cancelled` error. Returns false if the id is unknown.
+
+<UFunction
+  name="Cancel"
+  className="Http Client"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Request Id", pintype: "int" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Set Tls Options
+
+-   **New in 4.0.** Turns TLS on with these options. See [Security Context Options](/docs/Unreal/subsystem#security-context-options).
+-   The server certificate is verified with these options.
+-   Applies to the next connection.
+
+<UFunction
+  name="Set Tls Options"
+  className="Http Client"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Sec Opts", pintype: "struct" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+## Events
+
+### On Progress
+
+-   **New in 4.0.** Download progress of the current request, about every 64 KiB: bytes received and the `Content-Length` (`-1` if unknown).
+
+<UEvents
+  name="On Progress"
+  showBindNode={true}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Request Id", pintype: "int" },
+    { name: "Bytes Received", pintype: "int64" },
+    { name: "Total Bytes", pintype: "int64" }
   ]}
 />

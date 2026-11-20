@@ -238,7 +238,7 @@ function Home() {
 					<PathCard
 						icon={Gamepad2}
 						title="Unreal Engine plugin"
-						description="For Unreal Engine 4.27 and above. Use it from Blueprints or C++ through the subsystem."
+						description="For Unreal Engine 5 (4.27 with the 3.x releases). Use it from Blueprints or C++ through the subsystem."
 						href="/docs/Unreal/about"
 						cta="Plugin docs"
 						items={[
@@ -273,7 +273,7 @@ function Hero() {
 			<div className="flex flex-col items-start gap-6">
 				<Badge variant="outline" className="h-6 gap-1.5 px-3 text-xs">
 					<span className="size-1.5 rounded-full bg-primary" />
-					C++17 · Asio non-boost · Unreal Engine 4.27+
+					C++17 · Asio non-boost · Unreal Engine 5
 				</Badge>
 				<h1 className="text-balance font-bold text-4xl leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
 					Networking for C++ and Unreal,{" "}

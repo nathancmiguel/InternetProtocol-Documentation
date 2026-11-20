@@ -30,6 +30,12 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
   </Step>
 </Steps>
 
+<Callout title="Datagrams in 4.0">
+  -   The receive buffer is 64 KiB by default (16 KiB before). Datagrams that do not fit are dropped and counted instead of closing the socket.
+  -   When the Game Thread falls more than `Max Pending Receive MB` behind, new datagrams are dropped.
+  -   Windows ICMP "port unreachable" resets (`WSAECONNRESET`) no longer close the socket.
+</Callout>
+
 ## Nodes
 
 ### Is Open
@@ -211,6 +217,102 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
     outPins={[{ name: "", pintype: "exec" }]}
 />
 
+## Broadcast and Multicast
+
+**New in 4.0.** Errors of these nodes are reported through `On Error`.
+
+### Set Broadcast
+
+-   Allows sending to broadcast addresses (for example `255.255.255.255` or `192.168.1.255`).
+
+<UFunction
+  name="Set Broadcast"
+  className="UDPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Enable", pintype: "bool" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Join Multicast Group
+
+-   Joins a multicast group, for example `239.0.0.1` or `ff02::1`. Returns false on error.
+
+<UFunction
+  name="Join Multicast Group"
+  className="UDPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Group Address", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Leave Multicast Group
+
+-   Leaves a multicast group joined with `Join Multicast Group`.
+
+<UFunction
+  name="Leave Multicast Group"
+  className="UDPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Group Address", pintype: "fstring" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" },
+    { name: "Return Value", pintype: "bool" }
+  ]}
+/>
+
+### Set Multicast TTL
+
+-   Number of network hops multicast datagrams may cross (`1` = local network only).
+
+<UFunction
+  name="Set Multicast TTL"
+  className="UDPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Hops", pintype: "int" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
+### Set Multicast Loopback
+
+-   Whether this machine also receives the multicast datagrams it sends.
+
+<UFunction
+  name="Set Multicast Loopback"
+  className="UDPServer"
+  pure={false}
+  inPins={[
+    { name: "", pintype: "exec" },
+    { name: "Target", pintype: "object" },
+    { name: "Enable", pintype: "bool" }
+  ]}
+  outPins={[
+    { name: "", pintype: "exec" }
+  ]}
+/>
+
 ## Events
 
 ### On Listening
@@ -218,7 +320,7 @@ import { ImageZoom } from "fumadocs-ui/components/image-zoom";
 -   This event will be triggered when socket start to listening.
 
 <UEvents
-    name="On Connected"
+    name="On Listening"
     showBindNode={true}
     outPins={[{ name: "", pintype: "exec" }]}
 />
